@@ -23,6 +23,7 @@ public class Assets {
     public static final String SET_BTN_HOV = "Setting_pressed.png";
     public static final String EXIT_BTN = "exit.png";
     public static final String EXIT_BTN_HOV = "exit_pressed.png";
+    public static final String RESUME_BTN = "resume.png";
 
     // --- GAME TEXTURES ---
     public static final String TITLE_LOGO = "toyour.png";
@@ -32,9 +33,8 @@ public class Assets {
     public static final String PAUSE_BTN = "Pause.png";
     public static final String RETRY_BTN = "retry.png";
     public static final String GAMEOVER_TITLE = "GO.png";
+    public static final String PAUSED_TITLE = "GAMEOVER.png";
 
-
-    // Add the rest of your textures (tutorial, settings, etc.) here...
 
     public static void load(AssetManager am) {
         am.load(MENU_MUSIC, Music.class);
@@ -55,6 +55,7 @@ public class Assets {
         am.load(WALL_TILE, Texture.class);
         am.load(PAUSE_BTN, Texture.class);
         am.load(RETRY_BTN, Texture.class);
+        am.load(RESUME_BTN, Texture.class);
         am.load(GAMEOVER_TITLE, Texture.class);
     }
 }

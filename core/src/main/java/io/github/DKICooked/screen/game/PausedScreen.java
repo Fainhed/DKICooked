@@ -38,6 +38,9 @@ public class PausedScreen extends Table {
         bg = new Image(greyBg);
         bg.setColor(new Color(0.8f, 0.8f, 0.8f, 0.5f));
         bg.setFillParent(true);
+
+        bg.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
+
         addActor(bg);
 
         Texture pausedLabel = new Texture(Gdx.files.internal("Paused.png"));
@@ -90,5 +93,10 @@ public class PausedScreen extends Table {
 
     public void toggle(boolean show) {
         setVisible(show);
+        if (show) {
+            setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.enabled);
+        } else {
+            setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
+        }
     }
 }

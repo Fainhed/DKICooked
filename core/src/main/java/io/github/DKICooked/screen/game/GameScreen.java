@@ -101,6 +101,7 @@ public class GameScreen extends BaseScreen {
         this.stage.addActor(player);
         this.sprite = new PlayerSprite(player);
 
+
         // --- 4. Setup Input ---
         InputMultiplexer multiplexer = new InputMultiplexer();
         multiplexer.addProcessor(uiStage);
@@ -221,50 +222,43 @@ public class GameScreen extends BaseScreen {
     }
 
     public void setupUI() {
-        // 1. Create a Label Style (using a basic font)
-        Label.LabelStyle labelStyle = new Label.LabelStyle();
-        labelStyle.font = new BitmapFont(); // Default LibGDX font
-        labelStyle.fontColor = Color.WHITE;
-
-        scoreLabel = new Label("Height: 0m", labelStyle);
-        scoreLabel.setFontScale(1.5f); // Make it a bit bigger
-
-        // 2. Add to your existing Table or a new one
-        Table scoreTable = new Table();
-        scoreTable.setFillParent(true);
-        scoreTable.top().left().pad(20); // Put it in the top left
-        scoreTable.add(scoreLabel);
-
-        uiStage.addActor(scoreTable);
-
-        Texture pauseTex = main.manager.get(Assets.PAUSE_BTN, Texture.class);
-        ImageButton pauseButton = new ImageButton(new TextureRegionDrawable(new TextureRegion(pauseTex)));
-
-        Table uiTable = new Table();
-        uiTable.setFillParent(true);
-        uiTable.top().right();
-        uiTable.add(pauseButton).size(40, 40).pad(10);
-
-        // Add to uiStage instead of stage
-        uiStage.addActor(uiTable);
-
+        // 1. Setup the Overlay FIRST (so it's "behind" the pause button)
         pauseOverlay = new PausedScreen(() -> {
             paused = false;
             pauseOverlay.toggle(false);
         }, main);
-
-        // Add to uiStage
+        pauseOverlay.setVisible(false);
+        pauseOverlay.setTouchable(com.badlogic.gdx.scenes.scene2d.Touchable.disabled);
         uiStage.addActor(pauseOverlay);
+
+        // 2. Setup Game Over UI
+        setupGameOverUI();
+
+        // 3. Setup the HUD (Score and Pause Button) LAST
+        Table hudTable = new Table();
+        hudTable.setFillParent(true);
+
+        // Score on the left
+        Label.LabelStyle labelStyle = new Label.LabelStyle(new BitmapFont(), Color.WHITE);
+        scoreLabel = new Label("Height: 0m", labelStyle);
+        scoreLabel.setFontScale(1.5f);
+        hudTable.top().left().pad(20).add(scoreLabel).expandX().left();
+
+        // Pause button on the right
+        Texture pauseTex = main.manager.get(Assets.PAUSE_BTN, Texture.class);
+        ImageButton pauseButton = new ImageButton(new TextureRegionDrawable(new TextureRegion(pauseTex)));
+        hudTable.top().right().add(pauseButton).size(40, 40).pad(10);
 
         pauseButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 paused = !paused;
                 pauseOverlay.toggle(paused);
+                // If paused, the overlay becomes touchable and visible
             }
         });
 
-        setupGameOverUI();
+        uiStage.addActor(hudTable);
     }
 
     private Texture createWhitePixel() {
@@ -310,6 +304,8 @@ public class GameScreen extends BaseScreen {
         gameOverTable.add(retryButton).size(100, 100);
 
         Table buttonTable = new Table();
+
+
 
         // 5. Add the "Click" logic to restart the game
         retryButton.addListener(new ClickListener() {
