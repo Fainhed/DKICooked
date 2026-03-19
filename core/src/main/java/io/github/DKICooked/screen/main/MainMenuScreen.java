@@ -52,7 +52,7 @@ public class MainMenuScreen extends BaseScreen {
         exitText = new Texture(Gdx.files.internal("exit.png"));
         exitTextHov = new Texture(Gdx.files.internal("exit_pressed.png"));
 
-        titleText = new Texture(Gdx.files.internal("DonkeyKong.png"));
+        titleText = new Texture(Gdx.files.internal("toyour.png"));
         subTitleText = new Texture(Gdx.files.internal("Infinity.png"));
 
         Image title = new Image(titleText);
@@ -66,7 +66,7 @@ public class MainMenuScreen extends BaseScreen {
         subTitle.setScaling(Scaling.fit);
 
         table.top().center();
-        table.add(title).width(Gdx.graphics.getWidth() * 0.37f).padBottom(-133).row();
+        table.add(title).width(Gdx.graphics.getWidth() * 0.37f).padBottom(-80).row();
         table.add(subTitle).width(Gdx.graphics.getWidth() * 0.5f).padBottom(50).row();
 
 
