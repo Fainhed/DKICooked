@@ -17,6 +17,8 @@ public class PlayerSprite {
     private final TextureRegion deathRegion;
     private Texture deathText;
 
+    TextureRegion frame;
+
     private float stateTime;
 
     public PlayerSprite(PlayerActor player) {
@@ -48,7 +50,6 @@ public class PlayerSprite {
     public void draw(Batch batch, PlayerActor player) {
         stateTime += Gdx.graphics.getDeltaTime();
 
-        TextureRegion frame;
         if (!player.isGrounded() || Math.abs(player.getBody().velocityY) > 0.1f) {
             frame = jumpRegion;
         } else if (Math.abs(player.getBody().velocityX) > 0.5f) {
@@ -58,10 +59,6 @@ public class PlayerSprite {
             frame = idleRegion;
         }
 
-        if (player.isCharging()) {
-            stateTime = 0f;
-            frame = chargeReg;
-        }
 
         if (player.isDead()) {
             frame = deathRegion;
@@ -69,6 +66,9 @@ public class PlayerSprite {
             frame = jumpRegion;
         } else if (Math.abs(player.getBody().velocityX) > 0.5f) {
             frame = walkAnim.getKeyFrame(stateTime, true);
+        } else if (player.isCharging()) {
+            stateTime = 0f;
+            frame = chargeReg;
         } else {
             stateTime = 0f;
             frame = idleRegion;
