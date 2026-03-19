@@ -210,6 +210,7 @@ public class GameScreen extends BaseScreen {
     @Override
     public void dispose() {
         uiStage.dispose();
+        soundPlayer.dispose();
         // BaseScreen usually handles 'stage'
     }
 }

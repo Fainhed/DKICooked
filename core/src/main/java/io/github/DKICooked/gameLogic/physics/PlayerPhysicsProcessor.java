@@ -78,6 +78,9 @@ public class PlayerPhysicsProcessor {
             body.velocityX *= -1.25f;
             stunTime = 0.25f;
             player.setX(MathUtils.clamp(player.getX(), 0, 800 - player.getWidth()));
+
+            soundPlayer.playSplat();
+
         }
 
 // Wall Collision
@@ -113,9 +116,18 @@ public class PlayerPhysicsProcessor {
                 float surfaceY = p.getSurfaceY(x);
                 if (surfaceY != -1) {
                     if (body.velocityY <= 0 && oldY >= surfaceY - 5f && footY <= surfaceY + 2f) {
+
+                        float impactSpeed = Math.abs(body.velocityY);
+
                         player.setY(surfaceY);
                         body.velocityY = 0;
                         groundedThisFrame = true;
+
+                        if (impactSpeed > 600f) {
+                            soundPlayer.playSplat();
+                            System.out.println("SPLAT TRIGGERED");
+                        }
+
                         break;
                     }
                     float bottomY = surfaceY - p.thickness;

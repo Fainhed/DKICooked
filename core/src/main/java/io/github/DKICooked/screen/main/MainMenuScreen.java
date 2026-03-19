@@ -2,6 +2,7 @@ package io.github.DKICooked.screen.main;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
@@ -17,6 +18,7 @@ import io.github.DKICooked.Main;
 import io.github.DKICooked.screen.BaseScreen;
 import io.github.DKICooked.screen.game.GameScreen;
 
+
 public class MainMenuScreen extends BaseScreen {
     private final Texture startText;
     private final Texture startTextHov;
@@ -29,10 +31,17 @@ public class MainMenuScreen extends BaseScreen {
     private final Texture titleText;
     private final Texture subTitleText;
     private final Main main;
+    private Music menuMusic;
 
     public MainMenuScreen(Main main) {
         super();
         this.main = main;
+
+        menuMusic = Gdx.audio.newMusic(Gdx.files.internal("music/menu.mp3"));
+        menuMusic.setLooping(true);
+        menuMusic.setVolume(0.5f);
+        menuMusic.play();
+
         startText = new Texture(Gdx.files.internal("Start.png"));
         startTextHov = new Texture(Gdx.files.internal("Start_pressed.png"));
         tutText = new Texture(Gdx.files.internal("tutorial.png"));

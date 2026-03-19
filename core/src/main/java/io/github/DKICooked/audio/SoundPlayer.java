@@ -14,15 +14,14 @@ public class SoundPlayer {
 
     public SoundPlayer() {
         // Load short sound effects
-        jumpSound = Gdx.audio.newSound(Gdx.files.internal("sounds/jump.wav"));
-
+        jumpSound = Gdx.audio.newSound(Gdx.files.internal("audio/sfx/jump.wav"));
         //deathSound = Gdx.audio.newSound(Gdx.files.internal("sounds/death.wav"));
-        //splatSound = Gdx.audio.newSound(Gdx.files.internal("sounds/splat.wav"));
+        splatSound = Gdx.audio.newSound(Gdx.files.internal("audio/sfx/splat.wav"));
 
         // Load background music (mp3 recommended)
-        backgroundMusic = Gdx.audio.newMusic(Gdx.files.internal("sounds/music.wav"));
+        backgroundMusic = Gdx.audio.newMusic(Gdx.files.internal("audio/music/music.wav"));
         backgroundMusic.setLooping(true);
-        backgroundMusic.setVolume(0.5f);
+        backgroundMusic.setVolume(0.05f);
     }
 
     public void playJump() {
@@ -34,7 +33,7 @@ public class SoundPlayer {
     }
 
     public void playSplat() {
-        splatSound.play(1.0f);
+        splatSound.play(3.0f);
     }
 
     public void playMusic() {
