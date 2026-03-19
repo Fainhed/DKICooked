@@ -20,7 +20,7 @@ public class MusicPlayer {
             if (loop) {
                 clip.loop(Clip.LOOP_CONTINUOUSLY);
             }
-        // in case error
+
         } catch (Exception e) {
             e.printStackTrace();
         }

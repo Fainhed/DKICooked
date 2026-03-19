@@ -14,6 +14,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Scaling;
+import io.github.DKICooked.Assets;
 import io.github.DKICooked.Main;
 import io.github.DKICooked.screen.BaseScreen;
 import io.github.DKICooked.screen.game.GameScreen;
@@ -24,12 +25,12 @@ public class MainMenuScreen extends BaseScreen {
     private final Texture startTextHov;
     private final Texture tutText;
     private final Texture tutTextHov;
+    private final Texture subTitleText;
     private final Texture setText;
     private final Texture setTextHov;
     private final Texture exitText;
     private final Texture exitTextHov;
     private final Texture titleText;
-    private final Texture subTitleText;
     private final Main main;
     private Music menuMusic;
 
@@ -37,24 +38,26 @@ public class MainMenuScreen extends BaseScreen {
         super();
         this.main = main;
 
-        menuMusic = Gdx.audio.newMusic(Gdx.files.internal("music/menu.mp3"));
+
+        Music menuMusic = main.manager.get(Assets.MENU_MUSIC, Music.class);
         menuMusic.setLooping(true);
-        menuMusic.setVolume(0.5f);
         menuMusic.play();
 
-        startText = new Texture(Gdx.files.internal("Start.png"));
-        startTextHov = new Texture(Gdx.files.internal("Start_pressed.png"));
-        tutText = new Texture(Gdx.files.internal("tutorial.png"));
-        tutTextHov = new Texture(Gdx.files.internal("Tutorial_pressed.png"));
-        setText = new Texture(Gdx.files.internal("settings.png"));
-        setTextHov = new Texture(Gdx.files.internal("Setting_pressed.png"));
+         startText = main.manager.get(Assets.START_BTN, Texture.class);
+         startTextHov = main.manager.get(Assets.START_BTN_HOV, Texture.class);
 
-        exitText = new Texture(Gdx.files.internal("exit.png"));
-        exitTextHov = new Texture(Gdx.files.internal("exit_pressed.png"));
+         tutText = main.manager.get(Assets.TUT_BTN, Texture.class);
+         tutTextHov = main.manager.get(Assets.TUT_BTN_HOV, Texture.class);
 
-        titleText = new Texture(Gdx.files.internal("toyour.png"));
-        subTitleText = new Texture(Gdx.files.internal("Infinity.png"));
+         setText = main.manager.get(Assets.SET_BTN, Texture.class);
+         setTextHov = main.manager.get(Assets.SET_BTN_HOV, Texture.class);
 
+         exitText = main.manager.get(Assets.EXIT_BTN, Texture.class);
+         exitTextHov = main.manager.get(Assets.EXIT_BTN_HOV, Texture.class);
+         titleText = main.manager.get(Assets.TITLE_LOGO, Texture.class);
+         subTitleText = main.manager.get(Assets.SUBTITLE_LOGO, Texture.class);
+
+        // --- 3. UI Construction ---
         Image title = new Image(titleText);
         Image subTitle = new Image(subTitleText);
 
@@ -70,30 +73,33 @@ public class MainMenuScreen extends BaseScreen {
         table.add(subTitle).width(Gdx.graphics.getWidth() * 0.5f).padBottom(50).row();
 
 
+        // --- 4. Button Styles ---
+        // Start Button
         ImageButton.ImageButtonStyle startStyle = new ImageButton.ImageButtonStyle();
-        startStyle.imageUp = new TextureRegionDrawable( new TextureRegion(startText));
-        startStyle.imageOver = new TextureRegionDrawable( new TextureRegion(startTextHov));
-        startStyle.imageDown = new TextureRegionDrawable( new TextureRegion(startTextHov));
-
+        startStyle.imageUp = new TextureRegionDrawable(new TextureRegion(startText));
+        startStyle.imageOver = new TextureRegionDrawable(new TextureRegion(startTextHov));
+        startStyle.imageDown = new TextureRegionDrawable(new TextureRegion(startTextHov));
         ImageButton startButton = new ImageButton(startStyle);
-        startButton.setTouchable(Touchable.enabled);
 
+        // Tutorial Button
         ImageButton.ImageButtonStyle tutStyle = new ImageButton.ImageButtonStyle();
-        tutStyle.imageUp = new TextureRegionDrawable( new TextureRegion(tutText));
-        tutStyle.imageOver = new TextureRegionDrawable( new TextureRegion(tutTextHov));
-        tutStyle.imageDown = new TextureRegionDrawable( new TextureRegion(tutTextHov));
+        tutStyle.imageUp = new TextureRegionDrawable(new TextureRegion(tutText));
+        tutStyle.imageOver = new TextureRegionDrawable(new TextureRegion(tutTextHov));
+        tutStyle.imageDown = new TextureRegionDrawable(new TextureRegion(tutTextHov));
         ImageButton tutButton = new ImageButton(tutStyle);
 
+        // Settings Button
         ImageButton.ImageButtonStyle settStyle = new ImageButton.ImageButtonStyle();
-        settStyle.imageUp = new TextureRegionDrawable( new TextureRegion(setText));
-        settStyle.imageOver = new TextureRegionDrawable( new TextureRegion(setTextHov));
-        settStyle.imageDown = new TextureRegionDrawable( new TextureRegion(setTextHov));
+        settStyle.imageUp = new TextureRegionDrawable(new TextureRegion(setText));
+        settStyle.imageOver = new TextureRegionDrawable(new TextureRegion(setTextHov));
+        settStyle.imageDown = new TextureRegionDrawable(new TextureRegion(setTextHov));
         ImageButton settButton = new ImageButton(settStyle);
 
+        // Exit Button
         ImageButton.ImageButtonStyle exitStyle = new ImageButton.ImageButtonStyle();
-        exitStyle.imageUp = new TextureRegionDrawable( new TextureRegion(exitText));
-        exitStyle.imageOver = new TextureRegionDrawable( new TextureRegion(exitTextHov));
-        exitStyle.imageDown = new TextureRegionDrawable( new TextureRegion(exitTextHov));
+        exitStyle.imageUp = new TextureRegionDrawable(new TextureRegion(exitText));
+        exitStyle.imageOver = new TextureRegionDrawable(new TextureRegion(exitTextHov));
+        exitStyle.imageDown = new TextureRegionDrawable(new TextureRegion(exitTextHov));
         ImageButton exitButton = new ImageButton(exitStyle);
 
         startButton.getImage().setScaling(Scaling.fit);
@@ -114,19 +120,19 @@ public class MainMenuScreen extends BaseScreen {
                 )
             )
         );
+
         startButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                // When we switch screens, Main.java will handle the cleanup!
                 main.setScreen(new GameScreen(main));
-                System.out.println("Start Button was clicked");
-
             }
         });
 
-        tutButton.addListener(new ClickListener() {
+        exitButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                System.out.println("Tutorial Button was clicked");
+                Gdx.app.exit();
             }
         });
 
@@ -149,15 +155,6 @@ public class MainMenuScreen extends BaseScreen {
     @Override
     public void dispose() {
         super.dispose();
-        startText.dispose();
-        startTextHov.dispose();
-        tutText.dispose();
-        tutTextHov.dispose();
-        setText.dispose();
-        setTextHov.dispose();
-        exitText.dispose();
-        exitTextHov.dispose();
-        titleText.dispose();
-        subTitleText.dispose();
+
     }
 }

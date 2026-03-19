@@ -3,6 +3,7 @@ package io.github.DKICooked.screen.game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputMultiplexer;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
@@ -16,6 +17,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
+import io.github.DKICooked.Assets;
 import io.github.DKICooked.Main;
 import io.github.DKICooked.entities.Platform;
 import io.github.DKICooked.entities.PlatformTiles;
@@ -47,6 +49,7 @@ public class GameScreen extends BaseScreen {
     private final PlayerSprite sprite;
 
     private SoundPlayer soundPlayer;
+    private Music menuMusic;
 
     private Texture platformTileTexture;
     private PlatformTiles platformTile;
@@ -55,6 +58,7 @@ public class GameScreen extends BaseScreen {
     private Label finalScoreLabel;
     private Texture titleTex;
     private Texture retryTex;
+
 
     private Texture whitePixel;
 
@@ -72,34 +76,38 @@ public class GameScreen extends BaseScreen {
     public GameScreen(Main main) {
         this.main = main;
 
-        playerFallenTexture = new Texture(Gdx.files.internal("dead.png"));
-        soundPlayer = new SoundPlayer();
-        soundPlayer.playMusic();
+        // --- 1. Get Assets from the Warehouse (AssetManager) ---
+        // These must be defined in your Assets.java and loaded in Main.java
+        this.playerFallenTexture = main.manager.get(Assets.PLAYER_DEAD, Texture.class);
+        this.platformTileTexture = main.manager.get(Assets.WALL_TILE, Texture.class);
 
-        // 1. Initialize UI Stage with a FIXED viewport
-        // This stage never moves, so 0,0 is always bottom-left of screen
+        // Pass 'main' so SoundPlayer can reach the AssetManager
+        this.soundPlayer = new SoundPlayer(main);
+        this.soundPlayer.playMusic();
+
+        // --- 2. Initialize UI Stage ---
         this.uiStage = new Stage(new FitViewport(SCREEN_WIDTH, SCREEN_HEIGHT));
 
-        // 2. Setup World
+        // --- 3. Setup World & Entities ---
         this.world = new WorldManager();
+        this.platformTile = new PlatformTiles(platformTileTexture);
 
-        platformTileTexture = new Texture(Gdx.files.internal("wallTile.png"));
-        platformTile = new PlatformTiles(platformTileTexture);
+        this.player = new PlayerActor(soundPlayer);
+        this.player.setSize(40, 60);
+        this.player.setPosition(400, 150);
+        this.player.setPlatforms(world.getActivePlatforms());
 
-        player = new PlayerActor(soundPlayer);
-        player.setSize(40, 60);
-        player.setPosition(400, 150);
-        player.setPlatforms(world.getActivePlatforms());
-        stage.addActor(player);
-        sprite = new PlayerSprite(player);
+        // 'stage' comes from BaseScreen
+        this.stage.addActor(player);
+        this.sprite = new PlayerSprite(player);
 
-        // 3. Setup Input (Allowing both stages to detect clicks)
+        // --- 4. Setup Input ---
         InputMultiplexer multiplexer = new InputMultiplexer();
-        multiplexer.addProcessor(uiStage); // UI gets first dibs on clicks
+        multiplexer.addProcessor(uiStage);
         multiplexer.addProcessor(stage);
         Gdx.input.setInputProcessor(multiplexer);
 
-        // 4. Initialize Components
+        // --- 5. Initialize Components ---
         setupUI();
         snapCamera(0);
     }
@@ -229,7 +237,7 @@ public class GameScreen extends BaseScreen {
 
         uiStage.addActor(scoreTable);
 
-        Texture pauseTex = new Texture(Gdx.files.internal("Pause.png"));
+        Texture pauseTex = main.manager.get(Assets.PAUSE_BTN, Texture.class);
         ImageButton pauseButton = new ImageButton(new TextureRegionDrawable(new TextureRegion(pauseTex)));
 
         Table uiTable = new Table();
@@ -269,11 +277,19 @@ public class GameScreen extends BaseScreen {
     }
 
     private void setupGameOverUI() {
-        retryTex = new Texture(Gdx.files.internal("retry.png"));
+
+        Texture exitTex = main.manager.get(Assets.EXIT_BTN, Texture.class);
+        ImageButton exitButton = new ImageButton(new TextureRegionDrawable(new TextureRegion(exitTex)));
+
+        // 1. Grab the already-loaded textures from the manager
+        // No more 'new Texture(Gdx.files.internal(...))'!
+        this.retryTex = main.manager.get(Assets.RETRY_BTN, Texture.class);
+        this.titleTex = main.manager.get(Assets.GAMEOVER_TITLE, Texture.class);
+
+        // 2. Create the Drawables and Images using the manager's textures
         TextureRegionDrawable retryDrawable = new TextureRegionDrawable(new TextureRegion(retryTex));
         ImageButton retryButton = new ImageButton(retryDrawable);
 
-        titleTex = new Texture(Gdx.files.internal("GO.png")); // Your title filename
         com.badlogic.gdx.scenes.scene2d.ui.Image titleImage = new com.badlogic.gdx.scenes.scene2d.ui.Image(titleTex);
 
         Label.LabelStyle scoreStyle = new Label.LabelStyle(new BitmapFont(), Color.WHITE);
@@ -293,12 +309,20 @@ public class GameScreen extends BaseScreen {
         gameOverTable.add(finalScoreLabel).padBottom(40).row();
         gameOverTable.add(retryButton).size(100, 100);
 
+        Table buttonTable = new Table();
+
         // 5. Add the "Click" logic to restart the game
         retryButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 // This destroys the current screen and creates a brand-new game
                 main.setScreen(new GameScreen(main));
+            }
+        });
+        exitButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                main.setScreen(new MainMenuScreen(main));
             }
         });
 
@@ -314,11 +338,6 @@ public class GameScreen extends BaseScreen {
 
     @Override
     public void dispose() {
-        uiStage.dispose();
-        if (playerFallenTexture != null) playerFallenTexture.dispose();
-        if (platformTileTexture != null) platformTileTexture.dispose();
-        if (titleTex != null) titleTex.dispose();
-        if (retryTex != null) retryTex.dispose();
-        if (whitePixel != null) whitePixel.dispose();
+        if (uiStage != null) uiStage.dispose();
     }
 }

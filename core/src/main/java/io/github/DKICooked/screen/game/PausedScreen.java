@@ -13,6 +13,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Scaling;
 import io.github.DKICooked.Main;
+import io.github.DKICooked.audio.SoundPlayer;
 import io.github.DKICooked.screen.main.MainMenuScreen;
 
 public class PausedScreen extends Table {
