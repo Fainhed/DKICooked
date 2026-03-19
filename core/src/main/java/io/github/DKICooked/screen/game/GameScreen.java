@@ -6,86 +6,86 @@ import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import io.github.DKICooked.Main;
+import io.github.DKICooked.audio.SoundPlayer;
 import io.github.DKICooked.entities.Platform;
 import io.github.DKICooked.entities.PlatformTiles;
 import io.github.DKICooked.entities.PlayerActor;
 import io.github.DKICooked.entities.PlayerSprite;
 import io.github.DKICooked.gameLogic.WorldManager;
-import io.github.DKICooked.render.DebugRenderer;
 import io.github.DKICooked.screen.BaseScreen;
-import io.github.DKICooked.screen.main.MainMenuScreen;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.graphics.g2d.BitmapFont;
-import io.github.DKICooked.audio.SoundPlayer;
-import io.github.DKICooked.audio.SoundPlayer;
 
 public class GameScreen extends BaseScreen {
 
     private enum State { PLAYING, DYING, GAMEOVER }
     private State currentState = State.PLAYING;
-    private float deathTimer = 0;
-    private final float DEATH_DURATION = 1.5f; // How long the "animation" lasts
+    private float deathTimer = 0f;
+    private static final float DEATH_DURATION = 1.5f;
     private Table gameOverTable;
 
-    private static final float SCREEN_WIDTH = 800f;
+    private static final float SCREEN_WIDTH  = 800f;
     private static final float SCREEN_HEIGHT = 600f;
 
     private final Main main;
     private final WorldManager world;
     private final PlayerActor player;
     private final PlayerSprite sprite;
-
-    private SoundPlayer soundPlayer;
+    private final SoundPlayer soundPlayer;
 
     private Texture platformTileTexture;
     private PlatformTiles platformTile;
     private Texture playerFallenTexture;
-
-    private Label finalScoreLabel;
+    private Texture backgroundTexture;
     private Texture titleTex;
     private Texture retryTex;
-
     private Texture whitePixel;
-    private Texture backgroundTexture;
 
-    // THE SECOND STAGE
+    // Fonts — stored so they can be disposed
+    private BitmapFont scoreFont;
+    private BitmapFont gameOverFont;
+
+    private Label scoreLabel;
+    private Label finalScoreLabel;
+    private final StringBuilder scoreBuilder = new StringBuilder();
+
     private final Stage uiStage;
 
     private int highestChunkReached = 0;
+    private int lastSnapChunk = -1;       // tracks which chunk we last snapped to
     private boolean paused = false;
+    private boolean escWasPressed = false; // debounce for ESC key
     private PausedScreen pauseOverlay;
 
-    private Label scoreLabel;
-    private StringBuilder scoreBuilder = new StringBuilder();
     private int recordHeight = 0;
 
     public GameScreen(Main main) {
         this.main = main;
-        backgroundTexture = new Texture(Gdx.files.internal("background_new.png"));
-        playerFallenTexture = new Texture(Gdx.files.internal("dead.png"));
+
+        backgroundTexture    = new Texture(Gdx.files.internal("background_new.png"));
+        playerFallenTexture  = new Texture(Gdx.files.internal("dead.png"));
+
         soundPlayer = new SoundPlayer();
         soundPlayer.playMusic();
 
-        // 1. Initialize UI Stage with a FIXED viewport
-        // This stage never moves, so 0,0 is always bottom-left of screen
+        // UI stage — fixed viewport, never scrolls
         this.uiStage = new Stage(new FitViewport(SCREEN_WIDTH, SCREEN_HEIGHT));
 
-        // 2. Setup World
+        // World
         this.world = new WorldManager();
 
         platformTileTexture = new Texture(Gdx.files.internal("wallTile.png"));
-        platformTile = new PlatformTiles(platformTileTexture);
+        platformTile        = new PlatformTiles(platformTileTexture);
 
         player = new PlayerActor(soundPlayer);
         player.setSize(40, 60);
@@ -94,58 +94,63 @@ public class GameScreen extends BaseScreen {
         stage.addActor(player);
         sprite = new PlayerSprite(player);
 
-        // 3. Setup Input (Allowing both stages to detect clicks)
+        // Input — UI gets first dibs
         InputMultiplexer multiplexer = new InputMultiplexer();
-        multiplexer.addProcessor(uiStage); // UI gets first dibs on clicks
+        multiplexer.addProcessor(uiStage);
         multiplexer.addProcessor(stage);
         Gdx.input.setInputProcessor(multiplexer);
 
-        // 4. Initialize Components
         setupUI();
         snapCamera(0);
     }
 
+    // ── Update ────────────────────────────────────────────────────────────────
+
     private void updateLogic(float delta) {
-        if(currentState == State.PLAYING) {
-            world.update(player.getY());
+        // ESC toggle with debounce
+        boolean escDown = Gdx.input.isKeyPressed(Input.Keys.ESCAPE);
+        if (escDown && !escWasPressed) {
+            paused = !paused;
+            pauseOverlay.toggle(paused);
+        }
+        escWasPressed = escDown;
 
-            player.setPlatforms(world.getActivePlatforms());
-
+        if (currentState == State.PLAYING) {
+            // Single update per frame
             world.update(player.getY());
             player.setPlatforms(world.getActivePlatforms());
 
             int currentChunk = world.getCurrentChunk();
-            if (currentChunk > highestChunkReached) highestChunkReached = currentChunk;
 
-            // Check if camera needs to snap to player's current chunk
-            float cameraTargetY = currentChunk * 600f + 300f;
-            if (stage.getCamera().position.y != cameraTargetY) {
+            // Advance high-water mark and snap camera only on chunk change
+            if (currentChunk > highestChunkReached) {
+                highestChunkReached = currentChunk;
+            }
+            if (currentChunk != lastSnapChunk) {
                 snapCamera(currentChunk);
+                lastSnapChunk = currentChunk;
             }
 
+            // Death: fell two chunks behind the highest reached
             if (highestChunkReached > 0 && currentChunk < highestChunkReached - 1) {
                 startDeathSequence();
             }
 
             int currentHeight = (int) (player.getY() / 100f);
-            if (currentHeight > recordHeight) {
-                recordHeight = currentHeight;
-            }
+            if (currentHeight > recordHeight) recordHeight = currentHeight;
+
         } else if (currentState == State.DYING) {
             deathTimer += delta;
 
             float bounce = (float) Math.sin(deathTimer * 5) * 50f;
-            float fall = 300f * deathTimer; // Constant falling speed
-
+            float fall   = 300f * deathTimer;
             player.setY(player.getY() + (bounce * (1 - deathTimer)) - (fall * delta));
-            player.rotateBy(400 * delta); // The death spin!
+            player.rotateBy(400 * delta);
 
-            if (deathTimer >= DEATH_DURATION) {
-                showGameOverScreen();
-            }
+            if (deathTimer >= DEATH_DURATION) showGameOverScreen();
         }
 
-
+        // Score label
         scoreBuilder.setLength(0);
         scoreBuilder.append("Best: ").append(recordHeight).append("m");
         scoreLabel.setText(scoreBuilder);
@@ -155,103 +160,84 @@ public class GameScreen extends BaseScreen {
 
     private void startDeathSequence() {
         currentState = State.DYING;
-        player.setDead(true); // This tells the Sprite to switch to the death image
+        player.setDead(true);
         player.clearActions();
-
-        player.setOrigin(player.getWidth() / 2, player.getHeight() / 2);
+        player.setOrigin(player.getWidth() / 2f, player.getHeight() / 2f);
     }
 
     private void showGameOverScreen() {
         currentState = State.GAMEOVER;
         paused = true;
-
-        if(finalScoreLabel != null) {
-            finalScoreLabel.setText("Best Score: " + recordHeight + "m");
-        }
-
+        if (finalScoreLabel != null) finalScoreLabel.setText("Best Score: " + recordHeight + "m");
         gameOverTable.setVisible(true);
     }
 
     private void snapCamera(int chunkIndex) {
-        float newY = chunkIndex * 600f;
+        float newY = chunkIndex * SCREEN_HEIGHT;
         OrthographicCamera cam = (OrthographicCamera) stage.getCamera();
-        cam.position.set(SCREEN_WIDTH / 2, newY + SCREEN_HEIGHT / 2, 0);
+        cam.position.set(SCREEN_WIDTH / 2f, newY + SCREEN_HEIGHT / 2f, 0);
         cam.update();
     }
+
+    // ── Render ────────────────────────────────────────────────────────────────
 
     @Override
     public void render(float delta) {
         ScreenUtils.clear(0.05f, 0.05f, 0.08f, 1f);
 
-        if ((!paused || currentState == State.DYING) && !Gdx.input.isKeyPressed(Input.Keys.ESCAPE)) {
+        if (!paused || currentState == State.DYING) {
             updateLogic(delta);
         }
 
         uiStage.act(delta);
 
-        // Get the batch once
         var batch = (com.badlogic.gdx.graphics.g2d.SpriteBatch) stage.getBatch();
 
-        // --- DRAWING ---
-
-        // 1. Draw Background (Fixed to the Screen)
+        // 1. Background — fixed to screen
         batch.setProjectionMatrix(uiStage.getCamera().combined);
         batch.begin();
         batch.draw(backgroundTexture, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-        batch.end(); // We MUST end here before changing the matrix
-
-        // 2. Draw Game World (Moves with the Camera)
-        batch.setProjectionMatrix(stage.getCamera().combined);
-        batch.begin();
-
-        // Platforms
-        for (Platform p : world.getActivePlatforms()) {
-            platformTile.render(batch, p);
-        }
-
-        // Player
-        sprite.draw(batch, player);
-
         batch.end();
 
-        // 3. UI Layer (Fixed to the Screen)
+        // 2. Game world — follows camera
+        batch.setProjectionMatrix(stage.getCamera().combined);
+        batch.begin();
+        for (Platform p : world.getActivePlatforms()) platformTile.render(batch, p);
+        sprite.draw(batch, player);
+        batch.end();
+
+        // 3. UI — fixed to screen
         uiStage.draw();
     }
 
+    // ── UI setup ──────────────────────────────────────────────────────────────
+
     public void setupUI() {
-        // 1. Create a Label Style (using a basic font)
-        Label.LabelStyle labelStyle = new Label.LabelStyle();
-        labelStyle.font = new BitmapFont(); // Default LibGDX font
-        labelStyle.fontColor = Color.WHITE;
+        scoreFont = new BitmapFont();
+        Label.LabelStyle labelStyle = new Label.LabelStyle(scoreFont, Color.WHITE);
 
-        scoreLabel = new Label("Height: 0m", labelStyle);
-        scoreLabel.setFontScale(1.5f); // Make it a bit bigger
+        scoreLabel = new Label("Best: 0m", labelStyle);
+        scoreLabel.setFontScale(1.5f);
 
-        // 2. Add to your existing Table or a new one
         Table scoreTable = new Table();
         scoreTable.setFillParent(true);
-        scoreTable.top().left().pad(20); // Put it in the top left
+        scoreTable.top().left().pad(20);
         scoreTable.add(scoreLabel);
-
         uiStage.addActor(scoreTable);
 
-        Texture pauseTex = new Texture(Gdx.files.internal("Pause.png"));
+        Texture pauseTex   = new Texture(Gdx.files.internal("Pause.png"));
         ImageButton pauseButton = new ImageButton(new TextureRegionDrawable(new TextureRegion(pauseTex)));
 
         Table uiTable = new Table();
         uiTable.setFillParent(true);
         uiTable.top().right();
         uiTable.add(pauseButton).size(40, 40).pad(10);
-
-        // Add to uiStage instead of stage
         uiStage.addActor(uiTable);
 
         pauseOverlay = new PausedScreen(() -> {
             paused = false;
             pauseOverlay.toggle(false);
         }, main);
-
-        // Add to uiStage
         uiStage.addActor(pauseOverlay);
 
         pauseButton.addListener(new ClickListener() {
@@ -266,44 +252,44 @@ public class GameScreen extends BaseScreen {
     }
 
     private Texture createWhitePixel() {
-        com.badlogic.gdx.graphics.Pixmap pixmap = new com.badlogic.gdx.graphics.Pixmap(1, 1, com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+        com.badlogic.gdx.graphics.Pixmap pixmap = new com.badlogic.gdx.graphics.Pixmap(
+            1, 1, com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
         pixmap.setColor(Color.WHITE);
         pixmap.fill();
-        Texture texture = new Texture(pixmap);
+        Texture t = new Texture(pixmap);
         pixmap.dispose();
-        return texture;
+        return t;
     }
 
     private void setupGameOverUI() {
         retryTex = new Texture(Gdx.files.internal("retry.png"));
-        TextureRegionDrawable retryDrawable = new TextureRegionDrawable(new TextureRegion(retryTex));
-        ImageButton retryButton = new ImageButton(retryDrawable);
+        ImageButton retryButton = new ImageButton(
+            new TextureRegionDrawable(new TextureRegion(retryTex)));
 
-        titleTex = new Texture(Gdx.files.internal("GO.png")); // Your title filename
-        com.badlogic.gdx.scenes.scene2d.ui.Image titleImage = new com.badlogic.gdx.scenes.scene2d.ui.Image(titleTex);
+        titleTex = new Texture(Gdx.files.internal("GO.png"));
+        com.badlogic.gdx.scenes.scene2d.ui.Image titleImage =
+            new com.badlogic.gdx.scenes.scene2d.ui.Image(titleTex);
 
-        Label.LabelStyle scoreStyle = new Label.LabelStyle(new BitmapFont(), Color.WHITE);
+        gameOverFont = new BitmapFont();
+        Label.LabelStyle scoreStyle = new Label.LabelStyle(gameOverFont, Color.WHITE);
         finalScoreLabel = new Label("Best Score: 0m", scoreStyle);
         finalScoreLabel.setFontScale(2f);
 
+        whitePixel = createWhitePixel();
+        TextureRegionDrawable bgDrawable =
+            new TextureRegionDrawable(new TextureRegion(whitePixel));
+
         gameOverTable = new Table();
-        gameOverTable.setFillParent(true); // Matches the size of the uiStage
-        gameOverTable.center();            // Puts everything in the middle
-
-        Texture pixel = createWhitePixel();
-        TextureRegionDrawable bgDrawable = new TextureRegionDrawable(new TextureRegion(pixel));
-
+        gameOverTable.setFillParent(true);
+        gameOverTable.center();
         gameOverTable.setBackground(bgDrawable.tint(new Color(0, 0, 0, 0.6f)));
-
         gameOverTable.add(titleImage).size(400, 100).padBottom(20).row();
         gameOverTable.add(finalScoreLabel).padBottom(40).row();
         gameOverTable.add(retryButton).size(100, 100);
 
-        // 5. Add the "Click" logic to restart the game
         retryButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                // This destroys the current screen and creates a brand-new game
                 main.setScreen(new GameScreen(main));
             }
         });
@@ -311,6 +297,8 @@ public class GameScreen extends BaseScreen {
         gameOverTable.setVisible(false);
         uiStage.addActor(gameOverTable);
     }
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     @Override
     public void resize(int width, int height) {
@@ -321,12 +309,13 @@ public class GameScreen extends BaseScreen {
     @Override
     public void dispose() {
         uiStage.dispose();
+        if (scoreFont           != null) scoreFont.dispose();
+        if (gameOverFont        != null) gameOverFont.dispose();
         if (playerFallenTexture != null) playerFallenTexture.dispose();
         if (platformTileTexture != null) platformTileTexture.dispose();
-        if (backgroundTexture != null) backgroundTexture.dispose();
-        if (titleTex != null) titleTex.dispose();
-        if (retryTex != null) retryTex.dispose();
-        if (whitePixel != null) whitePixel.dispose();
-
+        if (backgroundTexture   != null) backgroundTexture.dispose();
+        if (titleTex            != null) titleTex.dispose();
+        if (retryTex            != null) retryTex.dispose();
+        if (whitePixel          != null) whitePixel.dispose();
     }
 }
