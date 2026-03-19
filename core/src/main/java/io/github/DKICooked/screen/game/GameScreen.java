@@ -57,6 +57,7 @@ public class GameScreen extends BaseScreen {
     private Texture retryTex;
 
     private Texture whitePixel;
+    private Texture backgroundTexture;
 
     // THE SECOND STAGE
     private final Stage uiStage;
@@ -71,7 +72,7 @@ public class GameScreen extends BaseScreen {
 
     public GameScreen(Main main) {
         this.main = main;
-
+        backgroundTexture = new Texture(Gdx.files.internal("background.png"));
         playerFallenTexture = new Texture(Gdx.files.internal("dead.png"));
         soundPlayer = new SoundPlayer();
         soundPlayer.playMusic();
@@ -186,29 +187,34 @@ public class GameScreen extends BaseScreen {
             updateLogic(delta);
         }
 
-        // Act the UI stage (for button animations/logic)
         uiStage.act(delta);
 
-        // --- DRAWING ---
-        // 1. Player Actor (Invisible logic layer)
-        stage.draw();
+        // Get the batch once
+        var batch = (com.badlogic.gdx.graphics.g2d.SpriteBatch) stage.getBatch();
 
-        // 2. Draw Platforms AND Player Sprite together!
-        var batch = stage.getBatch();
+        // --- DRAWING ---
+
+        // 1. Draw Background (Fixed to the Screen)
+        batch.setProjectionMatrix(uiStage.getCamera().combined);
+        batch.begin();
+        batch.draw(backgroundTexture, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+        batch.end(); // We MUST end here before changing the matrix
+
+        // 2. Draw Game World (Moves with the Camera)
         batch.setProjectionMatrix(stage.getCamera().combined);
         batch.begin();
 
-        // Draw all the platforms first (so they go behind the player if they overlap)
+        // Platforms
         for (Platform p : world.getActivePlatforms()) {
-            platformTile.render((com.badlogic.gdx.graphics.g2d.SpriteBatch) batch, p);
+            platformTile.render(batch, p);
         }
 
-        // Draw the player sprite on top
+        // Player
         sprite.draw(batch, player);
 
         batch.end();
 
-        // 3. UI Layer (Fixed)
+        // 3. UI Layer (Fixed to the Screen)
         uiStage.draw();
     }
 
@@ -317,8 +323,10 @@ public class GameScreen extends BaseScreen {
         uiStage.dispose();
         if (playerFallenTexture != null) playerFallenTexture.dispose();
         if (platformTileTexture != null) platformTileTexture.dispose();
+        if (backgroundTexture != null) backgroundTexture.dispose();
         if (titleTex != null) titleTex.dispose();
         if (retryTex != null) retryTex.dispose();
         if (whitePixel != null) whitePixel.dispose();
+
     }
 }
