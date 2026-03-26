@@ -20,7 +20,7 @@ public class SoundPlayer {
         //splatSound = Gdx.audio.newSound(Gdx.files.internal("sounds/splat.wav"));
 
         // Load background music (mp3 recommended)
-        backgroundMusic = Gdx.audio.newMusic(Gdx.files.internal("sounds/music 8bit.wav"));
+        backgroundMusic = Gdx.audio.newMusic(Gdx.files.internal("sounds/music 8bit.mp3"));
         backgroundMusic.setLooping(true);
         backgroundMusic.setVolume(0.3f);
     }
