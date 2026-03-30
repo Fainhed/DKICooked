@@ -19,10 +19,7 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import io.github.DKICooked.Main;
 import io.github.DKICooked.audio.SoundPlayer;
-import io.github.DKICooked.entities.Platform;
-import io.github.DKICooked.entities.PlatformTiles;
-import io.github.DKICooked.entities.PlayerActor;
-import io.github.DKICooked.entities.PlayerSprite;
+import io.github.DKICooked.entities.*;
 import io.github.DKICooked.gameLogic.WorldManager;
 import io.github.DKICooked.screen.BaseScreen;
 
@@ -52,6 +49,7 @@ public class GameScreen extends BaseScreen {
     private Texture retryTex;
     private Texture whitePixel;
 
+    private Texture asteroidTex;
     // Fonts — stored so they can be disposed
     private BitmapFont scoreFont;
     private BitmapFont gameOverFont;
@@ -68,6 +66,8 @@ public class GameScreen extends BaseScreen {
     private boolean escWasPressed = false; // debounce for ESC key
     private PausedScreen pauseOverlay;
 
+    private final AsteroidManager asteroidManager;
+
     private int recordHeight = 0;
 
     public GameScreen(Main main, String selection) {
@@ -80,6 +80,10 @@ public class GameScreen extends BaseScreen {
 
         // UI stage — fixed viewport, never scrolls
         this.uiStage = new Stage(new FitViewport(SCREEN_WIDTH, SCREEN_HEIGHT));
+
+        //Asteroid
+        asteroidTex = new Texture(Gdx.files.internal("asteroid.png"));
+        this.asteroidManager = new AsteroidManager(asteroidTex);
 
         // World
         this.world = new WorldManager();
@@ -189,7 +193,10 @@ public class GameScreen extends BaseScreen {
     public void render(float delta) {
         ScreenUtils.clear(0.05f, 0.05f, 0.08f, 1f);
 
-        if (!paused || currentState == State.DYING) {
+        if (!paused && currentState == State.PLAYING) {
+            updateLogic(delta);
+            asteroidManager.update(delta, player.getY(), stage); // Move it here!
+        } else if (currentState == State.DYING) {
             updateLogic(delta);
         }
 
@@ -239,6 +246,7 @@ public class GameScreen extends BaseScreen {
         sprite.draw(batch, player);
         batch.end();
 
+        stage.draw();
         // --- LAYER 4: UI ---
         uiStage.draw();
     }
@@ -351,5 +359,6 @@ public class GameScreen extends BaseScreen {
         if (titleTex            != null) titleTex.dispose();
         if (retryTex            != null) retryTex.dispose();
         if (whitePixel          != null) whitePixel.dispose();
+        if (asteroidTex != null) asteroidTex.dispose();
     }
 }
