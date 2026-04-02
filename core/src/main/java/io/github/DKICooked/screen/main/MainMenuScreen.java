@@ -1,131 +1,90 @@
 package io.github.DKICooked.screen.main;
 
-import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
-import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
-import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
-import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Scaling;
 import io.github.DKICooked.Main;
 import io.github.DKICooked.screen.BaseScreen;
 import io.github.DKICooked.screen.game.CharacterSelectScreen;
-import io.github.DKICooked.screen.game.GameScreen;
+import io.github.DKICooked.screen.game.LeaderboardScreen;
 
 public class MainMenuScreen extends BaseScreen {
-    private final Texture startText;
-    private final Texture startTextHov;
-    private final Texture tutText;
-    private final Texture tutTextHov;
-    private final Texture setText;
-    private final Texture setTextHov;
-    private final Texture exitText;
-    private final Texture exitTextHov;
+    private final Main main;
     private final Texture titleText;
     private final Texture subTitleText;
-    private final Main main;
+    private BitmapFont menuFont;
 
     public MainMenuScreen(Main main) {
         super();
         this.main = main;
-        startText = new Texture(Gdx.files.internal("Start.png"));
-        startTextHov = new Texture(Gdx.files.internal("Start_pressed.png"));
-        tutText = new Texture(Gdx.files.internal("tutorial.png"));
-        tutTextHov = new Texture(Gdx.files.internal("Tutorial_pressed.png"));
-        setText = new Texture(Gdx.files.internal("settings.png"));
-        setTextHov = new Texture(Gdx.files.internal("Setting_pressed.png"));
 
-        exitText = new Texture(Gdx.files.internal("exit.png"));
-        exitTextHov = new Texture(Gdx.files.internal("exit_pressed.png"));
+        // 1. GENERATE FONT
+        createFonts();
 
+        // 2. KEEP TITLES (Your original logic)
         titleText = new Texture(Gdx.files.internal("toyour.png"));
         subTitleText = new Texture(Gdx.files.internal("Infinity.png"));
-
         Image title = new Image(titleText);
         Image subTitle = new Image(subTitleText);
+
+        title.setScaling(Scaling.fit);
+        subTitle.setScaling(Scaling.fit);
 
         Table table = new Table();
         table.setFillParent(true);
         stage.addActor(table);
 
-        title.setScaling(Scaling.fit);
-        subTitle.setScaling(Scaling.fit);
-
+        // KEEP ORIGINAL TITLE SIZING
         table.top().center();
         table.add(title).width(Gdx.graphics.getWidth() * 0.37f).padBottom(-80).row();
         table.add(subTitle).width(Gdx.graphics.getWidth() * 0.5f).padBottom(50).row();
 
+        // 3. CREATE TEXT BUTTON STYLE
+        TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
+        btnStyle.font = menuFont;
+        btnStyle.fontColor = Color.valueOf("f8c72c");
+        btnStyle.overFontColor = Color.valueOf("#ef901f"); // Your Gold color
+        btnStyle.downFontColor = Color.GRAY;
 
-        ImageButton.ImageButtonStyle startStyle = new ImageButton.ImageButtonStyle();
-        startStyle.imageUp = new TextureRegionDrawable( new TextureRegion(startText));
-        startStyle.imageOver = new TextureRegionDrawable( new TextureRegion(startTextHov));
-        startStyle.imageDown = new TextureRegionDrawable( new TextureRegion(startTextHov));
+        // 4. DEFINE BUTTONS
+        TextButton startButton = new TextButton("START GAME", btnStyle);
+        TextButton lbButton    = new TextButton("LEADERBOARD", btnStyle);
 
-        ImageButton startButton = new ImageButton(startStyle);
-        startButton.setTouchable(Touchable.enabled);
+        TextButton exitButton  = new TextButton("EXIT", btnStyle);
 
-        ImageButton.ImageButtonStyle tutStyle = new ImageButton.ImageButtonStyle();
-        tutStyle.imageUp = new TextureRegionDrawable( new TextureRegion(tutText));
-        tutStyle.imageOver = new TextureRegionDrawable( new TextureRegion(tutTextHov));
-        tutStyle.imageDown = new TextureRegionDrawable( new TextureRegion(tutTextHov));
-        ImageButton tutButton = new ImageButton(tutStyle);
+        // 5. ADD TO TABLE (Cleaned up padding to avoid overlapping)
+        table.add(startButton).padTop(-50).padBottom(10).row();
+        table.add(lbButton).padBottom(10).row();
 
-        ImageButton.ImageButtonStyle settStyle = new ImageButton.ImageButtonStyle();
-        settStyle.imageUp = new TextureRegionDrawable( new TextureRegion(setText));
-        settStyle.imageOver = new TextureRegionDrawable( new TextureRegion(setTextHov));
-        settStyle.imageDown = new TextureRegionDrawable( new TextureRegion(setTextHov));
-        ImageButton settButton = new ImageButton(settStyle);
+        table.add(exitButton).padTop(50).padBottom(10).row();
 
-        ImageButton.ImageButtonStyle exitStyle = new ImageButton.ImageButtonStyle();
-        exitStyle.imageUp = new TextureRegionDrawable( new TextureRegion(exitText));
-        exitStyle.imageOver = new TextureRegionDrawable( new TextureRegion(exitTextHov));
-        exitStyle.imageDown = new TextureRegionDrawable( new TextureRegion(exitTextHov));
-        ImageButton exitButton = new ImageButton(exitStyle);
+        // 6. KEEP ANIMATION
+        subTitle.addAction(Actions.forever(Actions.sequence(
+            Actions.moveBy(0, 10, 0.7f),
+            Actions.moveBy(0, -10, 0.7f)
+        )));
 
-        startButton.getImage().setScaling(Scaling.fit);
-        tutButton.getImage().setScaling(Scaling.fit);
-        settButton.getImage().setScaling(Scaling.fit);
-        exitButton.getImage().setScaling(Scaling.fit);
-
-        table.add(startButton).width(120).height(25).padTop(-60).center().row();
-        table.add(tutButton).width(140).height(50).padTop(-20).center().row();
-        table.add(settButton).width(140).height(50).padTop(-14).padBottom(50).center().row();
-        table.add(exitButton).width(140).height(30).center().row();
-
-        subTitle.addAction(
-            Actions.forever(
-                Actions.sequence(
-                    Actions.moveBy(0, 10, 0.7f),
-                    Actions.moveBy(0, -10, 0.7f)
-                )
-            )
-        );
+        // 7. LISTENERS
         startButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 main.setScreen(new CharacterSelectScreen(main));
-                System.out.println("Start Button was clicked");
-
             }
         });
 
-        tutButton.addListener(new ClickListener() {
+        lbButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                System.out.println("Tutorial Button was clicked");
-            }
-        });
-
-        settButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                System.out.println("Setting Button was clicked");
+                main.setScreen(new LeaderboardScreen(main));
             }
         });
 
@@ -133,23 +92,31 @@ public class MainMenuScreen extends BaseScreen {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 Gdx.app.exit();
-                System.out.println("Exit Button was clicked");
             }
         });
+
+        Gdx.input.setInputProcessor(stage);
+    }
+
+    private void createFonts() {
+        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("new_font.ttf"));
+        FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
+        parameter.size = 26; // Adjust this to match your UI scale
+        parameter.borderWidth = 1.5f;
+        parameter.borderColor = Color.BLACK;
+        parameter.shadowOffsetX = 2;
+        parameter.shadowOffsetY = 2;
+        parameter.shadowColor = new Color(0, 0, 0, 0.5f);
+
+        menuFont = generator.generateFont(parameter);
+        generator.dispose();
     }
 
     @Override
     public void dispose() {
         super.dispose();
-        startText.dispose();
-        startTextHov.dispose();
-        tutText.dispose();
-        tutTextHov.dispose();
-        setText.dispose();
-        setTextHov.dispose();
-        exitText.dispose();
-        exitTextHov.dispose();
         titleText.dispose();
         subTitleText.dispose();
+        if (menuFont != null) menuFont.dispose();
     }
 }

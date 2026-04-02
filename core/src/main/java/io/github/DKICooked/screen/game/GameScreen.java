@@ -8,19 +8,24 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
+import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
+import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import io.github.DKICooked.Main;
 import io.github.DKICooked.audio.SoundPlayer;
 import io.github.DKICooked.entities.*;
+import io.github.DKICooked.gameLogic.SaveData;
+import io.github.DKICooked.gameLogic.SaveManager;
 import io.github.DKICooked.gameLogic.WorldManager;
 import io.github.DKICooked.screen.BaseScreen;
 
@@ -30,7 +35,6 @@ public class GameScreen extends BaseScreen {
     private State currentState = State.PLAYING;
     private float deathTimer = 0f;
     private static final float DEATH_DURATION = 1.5f;
-    private Table gameOverTable;
 
     private static final float SCREEN_WIDTH  = 800f;
     private static final float SCREEN_HEIGHT = 600f;
@@ -41,85 +45,62 @@ public class GameScreen extends BaseScreen {
     private final PlayerSprite sprite;
     private final SoundPlayer soundPlayer;
 
-    private Texture platformTileTexture;
+    private Texture platformTileTexture, playerFallenTexture, backgroundTexture, railTexture;
+    private Texture titleTex, retryTex, whitePixel, asteroidTex, anomalyTex;
     private PlatformTiles platformTile;
-    private Texture playerFallenTexture;
-    private Texture backgroundTexture;
-    private Texture railTexture;
-    private Texture titleTex;
-    private Texture retryTex;
-    private Texture whitePixel;
-
-    private Color tint;
-
-    private Texture asteroidTex;
-    private float preRaidTimer = 0;
-    private final float WARNING_DURATION = 3.0f;
 
     private enum RaidType { NONE, ASTEROIDS, UFO, MAGNETIC_STORM }
     private RaidType activeRaid = RaidType.NONE;
+    private RaidType lastActiveRaid = RaidType.NONE;
 
     private float raidEndHeight = 0;
-    private int lastCheckedChunk = -1;
-
-    private float ufoSpawnTimer = 0f;
-    private final float UFO_SPAWN_INTERVAL = 4.0f;
     private Animation<TextureRegion> ufoHorizontalAnim;
-
     private final UfoManager ufoManager;
     private final MagneticStormManager msManger;
+    private final AsteroidManager asteroidManager;
 
-    // Fonts — stored so they can be disposed
     private BitmapFont scoreFont;
-    private BitmapFont gameOverFont;
-
-    private Label scoreLabel;
-    private Label finalScoreLabel;
+    private Label scoreLabel, finalScoreLabel;
     private final StringBuilder scoreBuilder = new StringBuilder();
 
     private final Stage uiStage;
-    private float backgroundTintAlpha = 0f; // 0 = Normal, 1 = Full Red
-    private final float FADE_SPEED = 1.5f;   // Higher = faster fade
-
-    private int highestChunkReached = 0;
-    private int lastSnapChunk = -1;       // tracks which chunk we last snapped to
-    private boolean paused = false;
-    private boolean escWasPressed = false; // debounce for ESC key
-    private PausedScreen pauseOverlay;
-
-    private final AsteroidManager asteroidManager;
-    private Texture anomalyTex;
+    private float backgroundTintAlpha = 0f;
+    private final float FADE_SPEED = 1.5f;
     private float anomalyTimer = 0;
 
+    private int highestChunkReached = 0;
+    private int lastSnapChunk = -1;
+    private boolean paused = false;
+    private boolean escWasPressed = false;
+    private PausedScreen pauseOverlay;
+
     private int recordHeight = 0;
-    private RaidType lastActiveRaid = RaidType.NONE;
+    private Table gameOverTable;
+    private TextField nameInput;
+    private TextButton submitBtn;
+    private ImageButton retryButton;
 
     public GameScreen(Main main, String selection) {
         this.main = main;
         this.selection = selection;
-        playerFallenTexture  = new Texture(Gdx.files.internal("dead.png"));
+        playerFallenTexture = new Texture(Gdx.files.internal("dead.png"));
         anomalyTex = new Texture(Gdx.files.internal("emer.png"));
         soundPlayer = new SoundPlayer();
         soundPlayer.playMusic();
 
-        // UI stage — fixed viewport, never scrolls
         this.uiStage = new Stage(new FitViewport(SCREEN_WIDTH, SCREEN_HEIGHT));
 
-        //Asteroid
         asteroidTex = new Texture(Gdx.files.internal("asteroid.png"));
         this.asteroidManager = new AsteroidManager(asteroidTex);
-
-        // World
         this.world = new WorldManager();
 
         platformTileTexture = new Texture(Gdx.files.internal("wallTile.jpg"));
-        platformTile        = new PlatformTiles(platformTileTexture);
+        platformTile = new PlatformTiles(platformTileTexture);
 
         player = new PlayerActor(soundPlayer);
         player.setSize(40, 60);
         player.setPosition(400, 150);
         player.setPlatforms(world.getActivePlatforms());
-
         player.initStats(selection);
 
         stage.addActor(player);
@@ -132,20 +113,13 @@ public class GameScreen extends BaseScreen {
 
         Texture f1 = new Texture(Gdx.files.internal("ufoH1.png"));
         Texture f2 = new Texture(Gdx.files.internal("ufoH2.png"));
-
-        TextureRegion[] frames = {
-            new TextureRegion(f1),
-            new TextureRegion(f2),
-        };
-
-        ufoHorizontalAnim = new Animation<>(0.3f, frames);
+        ufoHorizontalAnim = new Animation<>(0.3f, new TextureRegion(f1), new TextureRegion(f2));
         ufoHorizontalAnim.setPlayMode(Animation.PlayMode.LOOP);
 
         this.ufoManager = new UfoManager(ufoHorizontalAnim);
-
         this.msManger = new MagneticStormManager();
 
-        // Input — UI gets first dibs
+        // Initial input setup
         InputMultiplexer multiplexer = new InputMultiplexer();
         multiplexer.addProcessor(uiStage);
         multiplexer.addProcessor(stage);
@@ -154,8 +128,6 @@ public class GameScreen extends BaseScreen {
         setupUI();
         snapCamera(0);
     }
-
-    // ── Update ────────────────────────────────────────────────────────────────
 
     private void updateLogic(float delta) {
         boolean escDown = Gdx.input.isKeyPressed(Input.Keys.ESCAPE);
@@ -170,39 +142,22 @@ public class GameScreen extends BaseScreen {
             player.setPlatforms(world.getActivePlatforms());
 
             int currentChunk = world.getCurrentChunk();
-
-            if (currentChunk > highestChunkReached) {
-                highestChunkReached = currentChunk;
-            }
-
+            if (currentChunk > highestChunkReached) highestChunkReached = currentChunk;
             if (currentChunk != lastSnapChunk) {
                 snapCamera(currentChunk);
                 lastSnapChunk = currentChunk;
             }
 
-            if (activeRaid != RaidType.NONE) {
-                checkCollisions(); // This checks both classes, but only the active ones will be on stage
-            }
-
-            if (highestChunkReached > 0 && currentChunk < highestChunkReached - 1) {
-                startDeathSequence();
-            }
+            if (activeRaid != RaidType.NONE) checkCollisions();
+            if (highestChunkReached > 0 && currentChunk < highestChunkReached - 1) startDeathSequence();
 
             float moveDir = 0;
-            if (Gdx.input.isKeyPressed(Input.Keys.A))  moveDir = -1;
+            if (Gdx.input.isKeyPressed(Input.Keys.A)) moveDir = -1;
             if (Gdx.input.isKeyPressed(Input.Keys.D)) moveDir = 1;
 
-            if (activeRaid == RaidType.MAGNETIC_STORM) {
-                moveDir *= -1;
-                tint = msManger.getStormTint(backgroundTintAlpha);
-                 // -1 becomes 1, 1 becomes -1
-            } else {
-                tint = null;
-            }
-
+            if (activeRaid == RaidType.MAGNETIC_STORM) moveDir *= -1;
             player.handleHorizontalMovement(moveDir, delta);
 
-            // Calculate and update score text
             int currentHeight = (int) (player.getY() / 100f);
             if (currentHeight > recordHeight) recordHeight = currentHeight;
 
@@ -210,25 +165,22 @@ public class GameScreen extends BaseScreen {
             scoreBuilder.append("Best: ").append(recordHeight).append("m");
             scoreLabel.setText(scoreBuilder);
 
-
-
         } else if (currentState == State.DYING) {
             deathTimer += delta;
             float bounce = (float) Math.sin(deathTimer * 5) * 50f;
-            float fall   = 300f * deathTimer;
+            float fall = 300f * deathTimer;
             player.setY(player.getY() + (bounce * (1 - deathTimer)) - (fall * delta));
             player.rotateBy(400 * delta);
 
             if (deathTimer >= DEATH_DURATION) showGameOverScreen();
         }
-
         stage.act(delta);
     }
 
     private void startDeathSequence() {
         currentState = State.DYING;
-        activeRaid = RaidType.NONE; // Stop logic
-        backgroundTintAlpha = 0;    // Instant visual clear
+        activeRaid = RaidType.NONE;
+        backgroundTintAlpha = 0;
         player.setDead(true);
         player.clearActions();
         player.setOrigin(player.getWidth() / 2f, player.getHeight() / 2f);
@@ -237,8 +189,43 @@ public class GameScreen extends BaseScreen {
     private void showGameOverScreen() {
         currentState = State.GAMEOVER;
         paused = true;
-        if (finalScoreLabel != null) finalScoreLabel.setText("Best Score: " + recordHeight + "m");
+
+        // Force UI focus
+        InputMultiplexer multiplexer = new InputMultiplexer();
+        multiplexer.addProcessor(uiStage);
+        Gdx.input.setInputProcessor(multiplexer);
+
+        SaveData data = SaveManager.load();
+        boolean isHighScore = data.isHighScore(recordHeight);
+
+
+
+        // Ensure data exists and check leaderboard
+        if (data == null || data.leaderBoard == null || data.leaderBoard.size < 10) {
+            isHighScore = true;
+        } else if (recordHeight > data.leaderBoard.get(data.leaderBoard.size - 1).score) {
+            isHighScore = true;
+        }
+
+        if (finalScoreLabel != null) finalScoreLabel.setText("Final Score: " + recordHeight + "m");
+
         gameOverTable.setVisible(true);
+        gameOverTable.getColor().a = 0;
+        gameOverTable.addAction(Actions.fadeIn(0.4f));
+
+        if (isHighScore) {
+            nameInput.setVisible(true);
+            submitBtn.setVisible(true);
+            retryButton.setVisible(false);
+            nameInput.setText("");
+            uiStage.setKeyboardFocus(nameInput);
+        } else {
+            nameInput.setVisible(false);
+            submitBtn.setVisible(false);
+            retryButton.setVisible(true);
+        }
+
+        gameOverTable.invalidateHierarchy();
     }
 
     private void snapCamera(int chunkIndex) {
@@ -250,20 +237,14 @@ public class GameScreen extends BaseScreen {
 
     private void checkCollisions() {
         if (currentState != State.PLAYING) return;
-
-        for (com.badlogic.gdx.scenes.scene2d.Actor actor : stage.getActors()) {
-            if (actor instanceof AsteroidActor) {
-                AsteroidActor meteor = (AsteroidActor) actor;
-
+        for (var actor : stage.getActors()) {
+            if (actor instanceof AsteroidActor meteor) {
                 if (com.badlogic.gdx.math.Intersector.overlaps(meteor.getCollisionCircle(), player.getCollisionRect())) {
-                    // Trigger the sequence, but let updateLogic handle the timer
                     startDeathSequence();
                     break;
                 }
             }
-
-            if (actor instanceof UfoActor) {
-                UfoActor ufo = (UfoActor) actor;
+            if (actor instanceof UfoActor ufo) {
                 if (com.badlogic.gdx.math.Intersector.overlaps(ufo.getCollisionCircle(), player.getCollisionRect())) {
                     startDeathSequence();
                     break;
@@ -272,144 +253,107 @@ public class GameScreen extends BaseScreen {
         }
     }
 
-    // ── Render ────────────────────────────────────────────────────────────────
     @Override
     public void render(float delta) {
-        // Clear screen to a dark space color
+        // 1. Clear the screen
         ScreenUtils.clear(0.05f, 0.05f, 0.08f, 1f);
 
-        // --- 1. LOGIC UPDATES ---
-        if (!paused && (currentState == State.PLAYING || currentState == State.DYING)) {
+        // 2. Update Game Logic (ONLY if not paused)
+        if (!paused) {
             updateLogic(delta);
             if (currentState == State.PLAYING) {
                 handleAnomalyLogic(delta);
             }
         }
 
+        // 3. UPDATE UI LOGIC (ALWAYS - even if paused)
+        // This is what makes the PausedScreen animation actually move!
         uiStage.act(delta);
-        var batch = (com.badlogic.gdx.graphics.g2d.SpriteBatch) stage.getBatch();
 
-        // --- 2. LAYER 1 & 2: BACKGROUND (Stars & Rails) ---
+        SpriteBatch batch = (SpriteBatch) stage.getBatch();
+
+        // 4. Background Rendering (Parallax)
         batch.setProjectionMatrix(uiStage.getCamera().combined);
         batch.begin();
-
-        // Determine if we should be Blue/Cyan (Magnetic Storm) or Red (Asteroids/UFO)
         boolean isEffectivelyMagnetic = (activeRaid == RaidType.MAGNETIC_STORM) ||
             (activeRaid == RaidType.NONE && lastActiveRaid == RaidType.MAGNETIC_STORM);
 
         if (isEffectivelyMagnetic && backgroundTintAlpha > 0) {
-            // Apply the Blue/Cyan tint from the MagneticStormManager
             batch.setColor(msManger.getStormTint(backgroundTintAlpha));
         } else {
-            // Default: Apply the Red tint for other raids or warnings
             float currentGreenBlue = 1f - (backgroundTintAlpha * 0.7f);
             batch.setColor(1f, currentGreenBlue, currentGreenBlue, 1f);
         }
 
-        // Draw scrolling background textures
         float starScrollV = (player.getY() * 0.05f) / backgroundTexture.getHeight();
         batch.draw(backgroundTexture, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, starScrollV + 1, 1, starScrollV);
 
         float railScrollV = (player.getY() * 0.3f) / railTexture.getHeight();
         batch.draw(railTexture, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, (railScrollV / 2f), 1, (railScrollV / 2f) + 0.5f);
 
-        batch.setColor(Color.WHITE); // Reset color
+        batch.setColor(Color.WHITE);
         batch.end();
 
-        // --- 3. LAYER 3: GAME WORLD (Platforms & Player) ---
+        // 5. Game World Rendering (Platforms and Player)
         batch.setProjectionMatrix(stage.getCamera().combined);
         batch.begin();
-
         for (Platform p : world.getActivePlatforms()) {
             platformTile.render(batch, p);
         }
-
-        // Add a tiny visual jitter to the player during the storm for "glitch" feel
-        float jitterX = 0;
-        if (activeRaid == RaidType.MAGNETIC_STORM) {
-            jitterX = com.badlogic.gdx.math.MathUtils.random(-1.5f, 1.5f);
-            player.moveBy(jitterX, 0);
-        }
-
         sprite.draw(batch, player);
-
-        // Reset player position immediately so physics/collisions aren't affected
-        if (activeRaid == RaidType.MAGNETIC_STORM) {
-            player.moveBy(-jitterX, 0);
-        }
         batch.end();
 
-        // Draw Stage Actors (Asteroids, UFOs, etc.)
+        // Draw the stage (for actors added to the world stage)
         stage.draw();
 
-        // --- 4. LAYER 4: MAGNETIC GLITCH OVERLAY ---
-        // We draw this on top of the world but BEFORE the UI
+        // 6. Effects (Magnetic Glitch)
         if (isEffectivelyMagnetic && backgroundTintAlpha > 0) {
-            // Set projection to UI camera so glitch bars stay relative to screen
             batch.setProjectionMatrix(uiStage.getCamera().combined);
-
-            batch.begin(); // <--- ADD THIS LINE TO START THE BATCH
+            batch.begin();
             msManger.drawGlitch(batch, backgroundTintAlpha);
-            batch.end();   // <--- ADD THIS LINE TO FINISH THE BATCH
+            batch.end();
         }
 
-        // --- 5. LAYER 5: UI (Score & Pause) ---
-        uiStage.draw();
-
-        // --- 6. LAYER 6: ANOMALY "EMER" OVERLAY ---
+        // 7. Anomaly Text Pulse
         if (backgroundTintAlpha > 0) {
             anomalyTimer += delta;
             batch.setProjectionMatrix(uiStage.getCamera().combined);
             batch.begin();
-
-            if (!com.badlogic.gdx.math.MathUtils.randomBoolean(0.03f)) {
-                float shakeX = com.badlogic.gdx.math.MathUtils.random(-2f, 2f);
-                float shakeY = com.badlogic.gdx.math.MathUtils.random(-1f, 1f);
+            if (!MathUtils.randomBoolean(0.03f)) {
                 float pulse = 0.6f + (float) Math.sin(anomalyTimer * 6f) * 0.4f;
-
                 batch.setColor(1, 1, 1, pulse * backgroundTintAlpha);
-                batch.draw(anomalyTex, (SCREEN_WIDTH / 2f) - 285f + shakeX, 420 + shakeY, 570f, 85f);
+                batch.draw(anomalyTex, (SCREEN_WIDTH / 2f) - 285f, 420, 570f, 85f);
                 batch.setColor(Color.WHITE);
             }
             batch.end();
         }
+
+        // 8. UI Rendering (Always last so it stays on top)
+        uiStage.draw();
     }
 
     private void handleAnomalyLogic(float delta) {
         float py = player.getY();
-
-        // 1. START TRIGGER: If we are above 15m and no raid is currently happening
         if (py >= 1500 && activeRaid == RaidType.NONE) {
-            // Randomly pick between 3 now
-            int choice = com.badlogic.gdx.math.MathUtils.random(1, 3);
+            int choice = MathUtils.random(1, 3);
             if (choice == 1) activeRaid = RaidType.ASTEROIDS;
             else if (choice == 2) activeRaid = RaidType.UFO;
             else activeRaid = RaidType.MAGNETIC_STORM;
-
             raidEndHeight = py + 2000f;
-            System.out.println("Current Raid: " + activeRaid);
         }
 
-        // 2. EXECUTION: Keep the raid running while active
         if (activeRaid != RaidType.NONE) {
             backgroundTintAlpha += delta * FADE_SPEED;
             if (backgroundTintAlpha > 1f) backgroundTintAlpha = 1f;
-
             if (activeRaid == RaidType.ASTEROIDS) asteroidManager.update(delta, py, stage);
             else if (activeRaid == RaidType.UFO) ufoManager.update(delta, stage);
             else if (activeRaid == RaidType.MAGNETIC_STORM) msManger.update(delta, stage);
-
-            // 3. TERMINATION: End the raid once the player has climbed the duration
-            if (py >= raidEndHeight || py < 1500) {
-                stopAllRaids();
-                System.out.println("Raid Cycle Complete.");
-            }
+            if (py >= raidEndHeight || py < 1500) stopAllRaids();
         } else {
-            // Smoothly fade out the red tint when between raids
             backgroundTintAlpha -= delta * FADE_SPEED;
             if (backgroundTintAlpha <= 0f) {
                 backgroundTintAlpha = 0f;
-                lastActiveRaid = RaidType.NONE; // CRITICAL: Reset memory once fade is done
+                lastActiveRaid = RaidType.NONE;
             }
         }
     }
@@ -420,86 +364,109 @@ public class GameScreen extends BaseScreen {
         ufoManager.stop();
         msManger.stop(stage);
     }
-    // ── UI setup ──────────────────────────────────────────────────────────────
 
     public void setupUI() {
-        scoreFont = new BitmapFont();
-        Label.LabelStyle labelStyle = new Label.LabelStyle(scoreFont, Color.WHITE);
+        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("new_font.ttf"));
+        FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
+        parameter.size = 28;
+        parameter.color = Color.WHITE;
+        parameter.borderWidth = 2f;
+        parameter.borderColor = Color.BLACK;
+        scoreFont = generator.generateFont(parameter);
+        generator.dispose();
 
-        scoreLabel = new Label("Best: 0m", labelStyle);
-        scoreLabel.setFontScale(1.5f);
-
+        scoreLabel = new Label("Best: 0m", new Label.LabelStyle(scoreFont, Color.WHITE));
         Table scoreTable = new Table();
         scoreTable.setFillParent(true);
         scoreTable.top().left().pad(20);
         scoreTable.add(scoreLabel);
         uiStage.addActor(scoreTable);
 
-        Texture pauseTex   = new Texture(Gdx.files.internal("Pause.png"));
+        Texture pauseTex = new Texture(Gdx.files.internal("Pause.png"));
         ImageButton pauseButton = new ImageButton(new TextureRegionDrawable(new TextureRegion(pauseTex)));
-
         Table uiTable = new Table();
         uiTable.setFillParent(true);
         uiTable.top().right();
         uiTable.add(pauseButton).size(40, 40).pad(10);
         uiStage.addActor(uiTable);
 
-        pauseOverlay = new PausedScreen(() -> {
-            paused = false;
-            pauseOverlay.toggle(false);
-        }, soundPlayer::stopMusic, main);
+        pauseOverlay = new PausedScreen(
+            () -> { // Resume function
+                paused = false;
+                pauseOverlay.toggle(false);
+            },
+            () -> { // Quit function (The "Give Up" logic)
+                paused = false;             // Unpause logic
+                pauseOverlay.toggle(false); // Hide the pause menu
+                showGameOverScreen();       // Trigger your existing GameOver UI
+            },
+            main
+        );
         uiStage.addActor(pauseOverlay);
 
         pauseButton.addListener(new ClickListener() {
-            @Override
-            public void clicked(InputEvent event, float x, float y) {
-                paused = !paused;
-                pauseOverlay.toggle(paused);
-            }
+            @Override public void clicked(InputEvent event, float x, float y) { paused = !paused; pauseOverlay.toggle(paused); }
         });
 
         setupGameOverUI();
     }
 
-    private Texture createWhitePixel() {
-        com.badlogic.gdx.graphics.Pixmap pixmap = new com.badlogic.gdx.graphics.Pixmap(
-            1, 1, com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
-        pixmap.setColor(Color.WHITE);
-        pixmap.fill();
-        Texture t = new Texture(pixmap);
-        pixmap.dispose();
-        return t;
-    }
-
     private void setupGameOverUI() {
-        retryTex = new Texture(Gdx.files.internal("retry.png"));
-        ImageButton retryButton = new ImageButton(
-            new TextureRegionDrawable(new TextureRegion(retryTex)));
-
-        titleTex = new Texture(Gdx.files.internal("GO.png"));
-        com.badlogic.gdx.scenes.scene2d.ui.Image titleImage =
-            new com.badlogic.gdx.scenes.scene2d.ui.Image(titleTex);
-
-        gameOverFont = new BitmapFont();
-        Label.LabelStyle scoreStyle = new Label.LabelStyle(gameOverFont, Color.WHITE);
-        finalScoreLabel = new Label("Best Score: 0m", scoreStyle);
-        finalScoreLabel.setFontScale(2f);
-
         whitePixel = createWhitePixel();
-        TextureRegionDrawable bgDrawable =
-            new TextureRegionDrawable(new TextureRegion(whitePixel));
+        TextureRegionDrawable whiteDrawable = new TextureRegionDrawable(new TextureRegion(whitePixel));
+
+        TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
+        btnStyle.font = scoreFont;
+        btnStyle.fontColor = Color.WHITE;
+        btnStyle.up = whiteDrawable.tint(new Color(0.1f, 0.1f, 0.1f, 0.5f));
+
+        TextField.TextFieldStyle tfStyle = new TextField.TextFieldStyle();
+        tfStyle.font = scoreFont;
+        tfStyle.fontColor = Color.YELLOW;
+        tfStyle.cursor = whiteDrawable.tint(Color.YELLOW);
+        tfStyle.background = whiteDrawable.tint(new Color(0.2f, 0.2f, 0.2f, 0.8f));
+
+        finalScoreLabel = new Label("Final Score: 0m", new Label.LabelStyle(scoreFont, Color.WHITE));
+        nameInput = new TextField("", tfStyle);
+        nameInput.setMaxLength(3);
+        nameInput.setAlignment(Align.center);
+        submitBtn = new TextButton("SUBMIT", btnStyle);
+        retryTex = new Texture(Gdx.files.internal("retry.png"));
+        retryButton = new ImageButton(new TextureRegionDrawable(new TextureRegion(retryTex)));
 
         gameOverTable = new Table();
         gameOverTable.setFillParent(true);
         gameOverTable.center();
-        gameOverTable.setBackground(bgDrawable.tint(new Color(0, 0, 0, 0.6f)));
-        gameOverTable.add(titleImage).size(400, 100).padBottom(20).row();
-        gameOverTable.add(finalScoreLabel).padBottom(40).row();
+        gameOverTable.setBackground(whiteDrawable.tint(new Color(0, 0, 0, 0.8f)));
+
+        titleTex = new Texture(Gdx.files.internal("GO.png"));
+        Image goImage = new Image(titleTex);
+        goImage.setOrigin(Align.center);
+        goImage.addAction(Actions.forever(Actions.sequence(Actions.moveBy(0, 10, 0.8f), Actions.moveBy(0, -10, 0.8f))));
+
+        gameOverTable.add(goImage).size(400, 75).padBottom(20).row();
+        gameOverTable.add(finalScoreLabel).padBottom(20).row();
+        gameOverTable.add(nameInput).size(150, 50).padBottom(10).row();
+        gameOverTable.add(submitBtn).size(200, 50).padBottom(10).row();
         gameOverTable.add(retryButton).size(100, 100);
 
-        retryButton.addListener(new ClickListener() {
+        submitBtn.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                String name = nameInput.getText().toUpperCase().trim();
+                if (name.isEmpty()) name = "AAA";
+                SaveData data = SaveManager.load();
+                data.addScore(name, recordHeight);
+                SaveManager.save(data);
+                nameInput.setVisible(false);
+                submitBtn.setVisible(false);
+                retryButton.setVisible(true);
+                main.setScreen(new LeaderboardScreen(main));
+            }
+        });
+
+        retryButton.addListener(new ClickListener() {
+            @Override public void clicked(InputEvent event, float x, float y) {
                 soundPlayer.stopMusic();
                 main.setScreen(new GameScreen(main, selection));
             }
@@ -509,27 +476,33 @@ public class GameScreen extends BaseScreen {
         uiStage.addActor(gameOverTable);
     }
 
-
-    @Override
-    public void resize(int width, int height) {
-        stage.getViewport().update(width, height, true);
-        uiStage.getViewport().update(width, height, true);
+    private Texture createWhitePixel() {
+        com.badlogic.gdx.graphics.Pixmap pixmap = new com.badlogic.gdx.graphics.Pixmap(1, 1, com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
+        pixmap.setColor(Color.WHITE);
+        pixmap.fill();
+        Texture t = new Texture(pixmap);
+        pixmap.dispose();
+        return t;
     }
+
+    @Override public void resize(int width, int height) { stage.getViewport().update(width, height, true); uiStage.getViewport().update(width, height, true); }
 
     @Override
     public void dispose() {
         uiStage.dispose();
         if (sprite != null) sprite.dispose();
-        if (scoreFont           != null) scoreFont.dispose();
-        if (gameOverFont        != null) gameOverFont.dispose();
+        if (scoreFont != null) scoreFont.dispose();
         if (playerFallenTexture != null) playerFallenTexture.dispose();
         if (platformTileTexture != null) platformTileTexture.dispose();
-        if (backgroundTexture   != null) backgroundTexture.dispose();
-        if (titleTex            != null) titleTex.dispose();
-        if (retryTex            != null) retryTex.dispose();
-        if (whitePixel          != null) whitePixel.dispose();
+        if (backgroundTexture != null) backgroundTexture.dispose();
+        if (titleTex != null) titleTex.dispose();
+        if (retryTex != null) retryTex.dispose();
+        if (whitePixel != null) whitePixel.dispose();
         if (asteroidTex != null) asteroidTex.dispose();
         if (anomalyTex != null) anomalyTex.dispose();
         if (msManger != null) msManger.dispose();
+        if (pauseOverlay != null) {
+            pauseOverlay.dispose();
+        }
     }
 }

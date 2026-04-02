@@ -4,91 +4,98 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.actions.Actions;
-import com.badlogic.gdx.scenes.scene2d.ui.Image;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 import io.github.DKICooked.Main;
-import io.github.DKICooked.screen.main.MainMenuScreen;
 
 public class PausedScreen extends Table {
-    private Image pausedImage;
-    private Image bg;
-    private Image resume;
-    private Image exit;
     private final Main main;
-    private final Runnable onExit;
+    private BitmapFont pauseFont;
+    private Texture dimTex, pausedLabel;
+    private Image pausedImage;
 
-    public PausedScreen(Runnable onResume, Runnable onExit, Main main) {
+    // onQuit now points to a method in GameScreen that triggers Game Over
+    public PausedScreen(Runnable onResume, Runnable onQuit, Main main) {
         this.main = main;
-        this.onExit = onExit;
         setFillParent(true);
+        createFonts();
 
-        //For bg
-        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGB888);
-        pixmap.setColor(Color.BLACK);
+        // 1. Background Overlay
+        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        pixmap.setColor(new Color(0, 0, 0, 0.7f));
         pixmap.fill();
-
-        Texture greyBg = new Texture(pixmap);
+        this.dimTex = new Texture(pixmap);
         pixmap.dispose();
 
-        bg = new Image(greyBg);
-        bg.setColor(new Color(0.8f, 0.8f, 0.8f, 0.5f));
+        Image bg = new Image(dimTex);
         bg.setFillParent(true);
         addActor(bg);
 
-        Texture pausedLabel = new Texture(Gdx.files.internal("Paused.png"));
+        // 2. Button Style
+        TextButton.TextButtonStyle btnStyle = new TextButton.TextButtonStyle();
+        btnStyle.font = pauseFont;
+        btnStyle.fontColor = Color.valueOf("f8c72c");
+        btnStyle.overFontColor = Color.valueOf("#ef901f");
+        // 3. Header & Animation
+        pausedLabel = new Texture(Gdx.files.internal("Paused.png"));
         pausedImage = new Image(pausedLabel);
+        pausedImage.setOrigin(Align.center);
+        pausedImage.addAction(Actions.forever(Actions.sequence(
+            Actions.moveBy(0, 15, 0.8f),
+            Actions.moveBy(0, -15, 0.8f)
+        )));
 
-        center();
-        add(pausedImage).size(200, 200);
-        pausedImage.setScaling(Scaling.fit);
+        Container<Image> pauseWrapper = new Container<>(pausedImage);
+        add(pauseWrapper).size(330, 100).padBottom(50).row();
 
-        pausedImage.addAction(
-            Actions.forever(
-                Actions.sequence(
-                    Actions.moveBy(0, 10, 0.7f),
-                    Actions.moveBy(0, -10, 0.7f)
-                )
-            )
-        );
+        // 4. Buttons
+        TextButton resumeBtn = new TextButton("RESUME", btnStyle);
+        TextButton quitBtn = new TextButton("QUIT", btnStyle);
 
-        Texture resLabel = new Texture(Gdx.files.internal("resume.png"));
-        resume = new Image(resLabel);
+        add(resumeBtn).padBottom(20).row();
+        add(quitBtn).row();
 
-        row();
-        center();
-        add(resume).size(100,100);
-        resume.setScaling(Scaling.fit);
-
-        resume.addListener(new ClickListener() {
-           @Override
-           public void clicked(InputEvent event, float x, float y) {
-               onResume.run();
-           }
+        // 5. Listeners
+        resumeBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                onResume.run();
+            }
         });
 
-        Texture exitLabel = new Texture(Gdx.files.internal("exit.png"));
-        exit = new Image(exitLabel);
-
-        row();
-        center();
-        add(exit).size(50, 50);
-        exit.setScaling(Scaling.fit);
-
-        exit.addListener(new ClickListener() {
-           @Override
-           public void clicked(InputEvent event, float x, float y) {
-               onExit.run();
-               main.setScreen(new MainMenuScreen(main));
-           }
+        quitBtn.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                // This will hide the pause menu and trigger showGameOverScreen() in GameScreen
+                onQuit.run();
+            }
         });
+
         setVisible(false);
+    }
+
+    private void createFonts() {
+        FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal("new_font.ttf"));
+        FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
+        parameter.size = 32;
+        parameter.borderWidth = 2f;
+        pauseFont = generator.generateFont(parameter);
+        generator.dispose();
     }
 
     public void toggle(boolean show) {
         setVisible(show);
+    }
+
+    public void dispose() {
+        if (pauseFont != null) pauseFont.dispose();
+        if (dimTex != null) dimTex.dispose();
+        if (pausedLabel != null) pausedLabel.dispose();
     }
 }

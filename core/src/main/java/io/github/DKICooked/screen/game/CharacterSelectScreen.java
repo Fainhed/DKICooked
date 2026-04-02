@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
+import com.badlogic.gdx.scenes.scene2d.actions.Actions;
 import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.ui.Label;
@@ -47,6 +48,17 @@ public class CharacterSelectScreen extends BaseScreen {
         // Replace "select_header.png" with your actual filename
         headerTex = new Texture(Gdx.files.internal("select.png"));
         Image titleImage = new Image(headerTex);
+
+        titleImage.addAction(
+            Actions.forever(
+                Actions.sequence(
+                    // Move UP 10 pixels over 0.7 seconds
+                    Actions.moveBy(0, 10, 0.7f),
+                    // Move DOWN 10 pixels over 0.7 seconds
+                    Actions.moveBy(0, -10, 0.7f)
+                )
+            )
+        );
 
         // 2. CREATE THE CARDS
         // Inside CharacterSelectScreen constructor:
