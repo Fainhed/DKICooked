@@ -95,6 +95,11 @@ public class GameScreen extends BaseScreen {
     private final Array<Vector2> trailPositions = new Array<>();
     private static final int MAX_TRAIL_SAMPLES = 10;
 
+    private float stuckTimer = 0;
+    private float lastRecordedHeight = 0;
+    private boolean pitySpawned = false;
+    private static final float STUCK_THRESHOLD = 20f; // 20 seconds
+
     public GameScreen(Main main, String selection) {
         this.main = main;
         this.selection = selection;
@@ -192,6 +197,21 @@ public class GameScreen extends BaseScreen {
             player.rotateBy(400 * delta);
 
             if (deathTimer >= DEATH_DURATION) showGameOverScreen();
+        }
+
+        if (Math.abs(player.getY() - lastRecordedHeight) < 50f) {
+            stuckTimer += delta;
+        } else {
+            // Player moved up! Reset everything
+            stuckTimer = 0;
+            lastRecordedHeight = player.getY();
+            pitySpawned = false;
+        }
+
+        // 2. If stuck for 20 seconds and we haven't given them a gift yet...
+        if (stuckTimer >= STUCK_THRESHOLD && !pitySpawned) {
+            spawnPityPowerUp();
+            pitySpawned = true; // Only spawn one per "stuck" session
         }
 
         for (Actor actor : stage.getActors()) {
@@ -311,6 +331,48 @@ public class GameScreen extends BaseScreen {
                 }
             }
         }
+    }
+    private void spawnPityPowerUp() {
+        System.out.println("PITY SYSTEM: Player is stuck! Finding a spot for help...");
+
+        Platform targetPlatform = null;
+        float closestDist = Float.MAX_VALUE;
+
+        // 1. Find the best platform ABOVE the player
+        for (Platform p : world.getActivePlatforms()) {
+            float dist = p.y1 - player.getY();
+            // Look for platforms between 0 and 400 pixels above the player
+            if (dist > 0 && dist < 400) {
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    targetPlatform = p;
+                }
+            }
+        }
+
+        // 2. Decide what to spawn
+        PowerUpActor.Type type = MathUtils.randomBoolean() ?
+            PowerUpActor.Type.GHOST :
+            PowerUpActor.Type.UFO_RIDE;
+        Texture tex = (type == PowerUpActor.Type.UFO_RIDE) ? ufoTex : ghostTex;
+
+        PowerUpActor pUp;
+
+        if (targetPlatform != null) {
+            // Option A: Found a platform! Place it there.
+            float centerX = (targetPlatform.x1 + targetPlatform.x2) / 2f;
+            pUp = new PowerUpActor(type, tex, centerX - 16, targetPlatform.y1 + 15);
+            System.out.println("Pity item spawned on platform at Y: " + targetPlatform.y1);
+        } else {
+            // Option B: No platform found? Spawn it in the air above the player.
+            pUp = new PowerUpActor(type, tex, player.getX(), player.getY() + 250);
+            System.out.println("Pity item spawned in mid-air!");
+        }
+
+        // 3. Add to stage and apply the "Bounce In" animation
+        pUp.setScale(0); // Start tiny
+        stage.addActor(pUp);
+        pUp.addAction(Actions.scaleTo(1, 1, 0.6f, com.badlogic.gdx.math.Interpolation.bounceOut));
     }
 
     private void checkAndSpawnPowerUps() {

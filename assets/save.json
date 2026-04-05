@@ -1,6 +1,10 @@
 {
 "leaderBoard": [
 	{
+		"name": "213",
+		"score": 90
+	},
+	{
 		"name": "JER",
 		"score": 54
 	},
@@ -35,10 +39,6 @@
 	{
 		"name": "13A",
 		"score": 16
-	},
-	{
-		"name": "125",
-		"score": 14
 	}
 ]
 }

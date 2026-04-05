@@ -36,7 +36,7 @@ public class AsteroidManager {
         if (isRaidActive) {
             handleRaid(delta, playerHeight, stage);
         } else {
-            handleCalm();
+            handleCalm(delta);
         }
     }
 
@@ -72,7 +72,7 @@ public class AsteroidManager {
         }
     }
 
-    private void handleCalm() {
+    private void handleCalm(float delta) {
         // Switch to RAID after 10 seconds
         if (raidDuration >= CALM_TIME) {
             isRaidActive = true;
