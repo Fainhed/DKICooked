@@ -68,10 +68,14 @@ public class LevelGenerator {
             Platform p = new Platform(cx - PLATFORM_HALF, cy, cx + PLATFORM_HALF, cy);
             p.thickness = MathUtils.randomBoolean(0.3f) ? TILE_SIZE * 1.5f : TILE_SIZE;
 
-            if (MathUtils.randomBoolean(0.15f)) {
-                p.powerUpType = PowerUpActor.Type.GHOST;
+            if (MathUtils.randomBoolean(0.12f)) {
+                // Flip a coin: heads it's a Ghost, tails it's a UFO
+                if (MathUtils.randomBoolean()) {
+                    p.powerUpType = PowerUpActor.Type.GHOST;
+                } else {
+                    p.powerUpType = PowerUpActor.Type.UFO_RIDE;
+                }
             }
-
             platforms.add(p);
         }
 

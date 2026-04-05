@@ -132,6 +132,14 @@ public class PlayerPhysicsProcessor {
         if (!isGrounded) body.applyGravity(dt);
         player.moveBy(0, body.velocityY * dt);
 
+        if (player.hasUfo()) {
+            body.velocityY = 300f;
+
+            player.moveBy(0, body.velocityY * dt);
+
+            isGrounded = false;
+            return;
+        }
 
         boolean groundedThisFrame = false;
         float footY = player.getY();

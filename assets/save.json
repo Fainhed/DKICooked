@@ -1,7 +1,19 @@
 {
 "leaderBoard": [
 	{
+		"name": "JER",
+		"score": 54
+	},
+	{
+		"name": "125",
+		"score": 31
+	},
+	{
 		"name": "WER",
+		"score": 28
+	},
+	{
+		"name": "123",
 		"score": 28
 	},
 	{
@@ -27,18 +39,6 @@
 	{
 		"name": "125",
 		"score": 14
-	},
-	{
-		"name": "WER",
-		"score": 12
-	},
-	{
-		"name": "231",
-		"score": 10
-	},
-	{
-		"name": "ALE",
-		"score": 8
 	}
 ]
 }

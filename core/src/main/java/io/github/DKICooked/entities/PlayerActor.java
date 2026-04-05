@@ -42,9 +42,19 @@ public class PlayerActor extends Actor {
     public void activePowerUp(PowerUpActor.Type type){
         powerUpTimer = 6.5f;
         switch (type) {
-            case GHOST: isGhost = true; break;
-            case SHIELD: hasShield = true; break;
-            case UFO_RIDE: hasUfo = true; break;
+            case GHOST:
+                isGhost = true;
+                powerUpTimer = 6.5f;
+                break;
+            case SHIELD:
+                hasShield = true;
+                powerUpTimer = 6.5f;
+                break;
+            case UFO_RIDE:
+                hasUfo = true;
+                isGhost = true; // Auto-ghost so we don't hit things while zooming
+                powerUpTimer = 2.0f; // Fast travel duration
+                break;
         }
     }
 
@@ -54,6 +64,14 @@ public class PlayerActor extends Actor {
 
     public boolean isGhost() {
         return isGhost;
+    }
+
+    public void setUfo(boolean ufo) {
+        this.hasUfo = ufo;
+    }
+
+    public boolean hasUfo() {
+        return hasUfo;
     }
 
     public void initStats(String characterName) {
@@ -69,7 +87,7 @@ public class PlayerActor extends Actor {
 
             case "Alaine":
                 this.jumpForce = 600f;
-                this.gravityScale = 0.5f;
+                this.gravityScale = 0.4f;
                 this.maxJumps = 1;
                 break;
 

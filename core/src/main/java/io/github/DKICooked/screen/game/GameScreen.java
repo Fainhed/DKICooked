@@ -12,6 +12,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.Stage;
@@ -20,6 +21,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import io.github.DKICooked.Main;
@@ -84,6 +86,14 @@ public class GameScreen extends BaseScreen {
     private TextButton quitBtn;
 
     private Texture ghostTex;
+    private Texture ufoTex;
+    private Texture ufoVehicle;
+
+    private float nextAnomalyMinHeight = 0; // The player must reach this height before a new raid can start
+    private static final float BREATHER_DISTANCE = 1500f; // Distance of the "Breather"
+
+    private final Array<Vector2> trailPositions = new Array<>();
+    private static final int MAX_TRAIL_SAMPLES = 10;
 
     public GameScreen(Main main, String selection) {
         this.main = main;
@@ -100,6 +110,8 @@ public class GameScreen extends BaseScreen {
         this.world = new WorldManager();
 
         ghostTex = new Texture(Gdx.files.internal("GhostPowerUp.png"));
+        ufoTex = new Texture(Gdx.files.internal("UfoPowerUp.png"));
+        ufoVehicle = new Texture(Gdx.files.internal("ufoV1.png"));
 
         platformTileTexture = new Texture(Gdx.files.internal("wallTile.jpg"));
         platformTile = new PlatformTiles(platformTileTexture);
@@ -208,6 +220,19 @@ public class GameScreen extends BaseScreen {
                 }
             }
         }
+
+        if (player.hasUfo()) {
+            // Record current position
+            trailPositions.insert(0, new Vector2(player.getX() - 20, player.getY() - 10));
+
+            // Keep the list short
+            if (trailPositions.size > MAX_TRAIL_SAMPLES) {
+                trailPositions.removeIndex(trailPositions.size - 1);
+            }
+        } else {
+            // Clear trail when UFO is gone
+            trailPositions.clear();
+        }
         stage.act(delta);
     }
 
@@ -291,13 +316,15 @@ public class GameScreen extends BaseScreen {
     private void checkAndSpawnPowerUps() {
         for (Platform p : world.getActivePlatforms()) {
             if (p.powerUpType != null) {
-                System.out.println("SPAWNING GHOST AT: " + p.x1 + ", " + p.y1);
+                System.out.println("SPAWNING: " + p.powerUpType);
+
+                Texture currentPU = (p.powerUpType == PowerUpActor.Type.UFO_RIDE) ? ufoTex : ghostTex;
 
                 float centerX = (p.x1 + p.x2) / 2f;
                 float spawnX = centerX - 16; // Assuming 32px wide power-up
                 float spawnY = p.y1 + 8;
 
-                PowerUpActor pUp = new PowerUpActor(p.powerUpType, ghostTex, spawnX, spawnY);
+                PowerUpActor pUp = new PowerUpActor(p.powerUpType, currentPU, spawnX, spawnY);
                 stage.addActor(pUp);
                 p.powerUpType = null;
             }
@@ -358,7 +385,36 @@ public class GameScreen extends BaseScreen {
             batch.setColor(0.5f, 0.8f, 1f, 0.6f);
         }
 
-        sprite.draw(batch, player);
+        if (player.hasUfo()) {
+            for (int i = 0; i < trailPositions.size; i++) {
+                Vector2 pos = trailPositions.get(i);
+
+                // Calculate transparency: further back = more faded
+                // (1.0 is the main ship, so we start trail at 0.5 and go down)
+                float alpha = 0.5f * (1f - (float) i / MAX_TRAIL_SAMPLES);
+
+                // Give it a "blue energy" tint
+                batch.setColor(0.4f, 0.7f, 1f, alpha);
+
+                // Draw the ghost UFO
+                batch.draw(ufoVehicle, pos.x, pos.y, 80, 50);
+            }
+
+            batch.setColor(Color.WHITE);
+            batch.draw(ufoVehicle, player.getX() - 20, player.getY() - 10, 80, 50);
+        }
+
+        if (!player.hasUfo()) {
+            if (player.isGhost()) {
+                batch.setColor(0.5f, 0.8f, 1f, 0.6f); // Ghostly transparency
+            } else {
+                batch.setColor(Color.WHITE);
+            }
+
+            // Draw the actual character
+            sprite.draw(batch, player);
+        }
+
         batch.setColor(Color.WHITE);
         batch.end();
 
@@ -393,22 +449,32 @@ public class GameScreen extends BaseScreen {
 
     private void handleAnomalyLogic(float delta) {
         float py = player.getY();
-        if (py >= 1500 && activeRaid == RaidType.NONE) {
+        if (activeRaid == RaidType.NONE && py >= 1500 && py >= nextAnomalyMinHeight) {
             int choice = MathUtils.random(1, 3);
             if (choice == 1) activeRaid = RaidType.ASTEROIDS;
             else if (choice == 2) activeRaid = RaidType.UFO;
             else activeRaid = RaidType.MAGNETIC_STORM;
-            raidEndHeight = py + 2000f;
+
+            raidEndHeight = py + 2000f; // Raid lasts for 2000 units
         }
 
         if (activeRaid != RaidType.NONE) {
             backgroundTintAlpha += delta * FADE_SPEED;
             if (backgroundTintAlpha > 1f) backgroundTintAlpha = 1f;
+
             if (activeRaid == RaidType.ASTEROIDS) asteroidManager.update(delta, py, stage);
             else if (activeRaid == RaidType.UFO) ufoManager.update(delta, stage);
             else if (activeRaid == RaidType.MAGNETIC_STORM) msManger.update(delta, stage);
-            if (py >= raidEndHeight || py < 1500) stopAllRaids();
+
+            // Check if the raid should END
+            if (py >= raidEndHeight) {
+                stopAllRaids();
+                // SET THE BREATHER HERE:
+                // The next raid cannot start until the player climbs another 1500 units
+                nextAnomalyMinHeight = py + BREATHER_DISTANCE;
+            }
         } else {
+            // 3. Fading out the effects after a raid ends
             backgroundTintAlpha -= delta * FADE_SPEED;
             if (backgroundTintAlpha <= 0f) {
                 backgroundTintAlpha = 0f;
