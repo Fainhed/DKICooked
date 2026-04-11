@@ -6,9 +6,7 @@ import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.ScreenUtils;
-import io.github.DKICooked.screen.main.IntroScreen;
 import io.github.DKICooked.screen.main.MainMenuScreen;
-import io.github.DKICooked.screen.main.SplashScreen;
 
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
@@ -22,7 +20,7 @@ public class Main extends ApplicationAdapter {
     public void create() {
         batch = new SpriteBatch();
 
-        setScreen(new IntroScreen(this));
+        setScreen(new MainMenuScreen(this));
     }
 
     @Override
@@ -30,10 +28,10 @@ public class Main extends ApplicationAdapter {
         ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
 
         float delta = Gdx.graphics.getDeltaTime();
+        currentScreen.render(delta);
 
-        if (currentScreen != null) {
-            currentScreen.render(delta);
-        }
+        batch.begin();
+        batch.end();
     }
 
     @Override
@@ -43,19 +41,15 @@ public class Main extends ApplicationAdapter {
 
     @Override
     public void dispose() {
-        batch.dispose();
-        image.dispose();
+        if (batch != null) batch.dispose();
+        if (image != null) image.dispose();
     }
 
     public void setScreen(Screen newScreen) {
         if (currentScreen != null) {
-            currentScreen.hide(); // Best practice to call hide
             currentScreen.dispose();
         }
+
         currentScreen = newScreen;
-        if (currentScreen != null) {
-            currentScreen.show(); // Best practice to call show
-            currentScreen.resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        }
     }
 }

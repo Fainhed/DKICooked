@@ -1,0 +1,17 @@
+[
+{
+	class: io.github.DKICooked.screen.game.LeaderboardScreen$ScoreEntry
+	name: Player
+	score: 13
+}
+{
+	class: io.github.DKICooked.screen.game.LeaderboardScreen$ScoreEntry
+	name: Player
+	score: 13
+}
+{
+	class: io.github.DKICooked.screen.game.LeaderboardScreen$ScoreEntry
+	name: Player
+	score: 30
+}
+]

@@ -1,54 +1,67 @@
 package io.github.DKICooked.audio;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.audio.Music;
+import com.badlogic.gdx.audio.Sound;
 
 public class SoundPlayer {
+    public static float bgmVolume = 0.5f;
+    public static float sfxVolume = 0.8f;
 
+    private Music music;
     private Sound jumpSound;
-    private Sound deathSound;
-    private Sound splatSound;
+    private Sound meteorSound;
+    private Sound ufoSound;
+    private Sound staticSound;
 
-    private Music backgroundMusic;
 
     public SoundPlayer() {
-        // Load short sound effects
+        staticSound = Gdx.audio.newSound(Gdx.files.internal("sounds/static.wav"));
+        meteorSound = Gdx.audio.newSound(Gdx.files.internal("sounds/meteor.wav"));
+        ufoSound = Gdx.audio.newSound(Gdx.files.internal("sounds/alien.wav"));
+        music = Gdx.audio.newMusic(Gdx.files.internal("sounds/music8bit.mp3"));
         jumpSound = Gdx.audio.newSound(Gdx.files.internal("sounds/jump.wav"));
-
-        //deathSound = Gdx.audio.newSound(Gdx.files.internal("sounds/death.wav"));
-        //splatSound = Gdx.audio.newSound(Gdx.files.internal("sounds/splat.wav"));
-
-        // Load background music (mp3 recommended)
-        backgroundMusic = Gdx.audio.newMusic(Gdx.files.internal("sounds/music 8bit.mp3"));
-        backgroundMusic.setLooping(true);
-        backgroundMusic.setVolume(0.3f);
-    }
-
-    public void playJump() {
-        jumpSound.play(1.0f);
-    }
-
-    public void playDeath() {
-        deathSound.play(1.0f);
-    }
-
-    public void playSplat() {
-        splatSound.play(1.0f);
     }
 
     public void playMusic() {
-        backgroundMusic.play();
+        if (music != null) {
+            music.setVolume(bgmVolume);
+            music.setLooping(true);
+            music.play();
+        }
+    }
+    public void playMeteor() {
+        if (meteorSound != null) meteorSound.play(sfxVolume);
+    }
+
+    public void playUFO() {
+        if (ufoSound != null) ufoSound.play(sfxVolume);
+    }
+
+    public void playStatic() {
+        if (staticSound != null) staticSound.play(sfxVolume);
     }
 
     public void stopMusic() {
-        backgroundMusic.stop();
+        if (music != null) music.stop();
     }
 
+    public void updateVolume() {
+        if (music != null) music.setVolume(bgmVolume);
+    }
+
+    public void playJump() {
+        if (jumpSound != null) {
+            jumpSound.play(sfxVolume);
+        }
+    }
+
+    // MEMORY OPTIMIZATION: Call this when the game closes
     public void dispose() {
-        jumpSound.dispose();
-        deathSound.dispose();
-        splatSound.dispose();
-        backgroundMusic.dispose();
+        if (music != null) music.dispose();
+        if (jumpSound != null) jumpSound.dispose();
+        if (meteorSound != null) meteorSound.dispose();
+        if (ufoSound != null) ufoSound.dispose();
+        if (staticSound != null) staticSound.dispose();
     }
 }
