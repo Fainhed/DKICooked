@@ -31,6 +31,7 @@ import io.github.DKICooked.gameLogic.SaveData;
 import io.github.DKICooked.gameLogic.SaveManager;
 import io.github.DKICooked.gameLogic.WorldManager;
 import io.github.DKICooked.screen.BaseScreen;
+import io.github.DKICooked.screen.SettingsScreen;
 import io.github.DKICooked.screen.main.MainMenuScreen;
 
 public class GameScreen extends BaseScreen {
@@ -99,9 +100,6 @@ public class GameScreen extends BaseScreen {
     private float lastRecordedHeight = 0;
     private boolean pitySpawned = false;
     private static final float STUCK_THRESHOLD = 20f; // 20 seconds
-
-    private Texture arrowTex;
-    private Image leftArrow, rightArrow;
 
     public GameScreen(Main main, String selection) {
         this.main = main;
@@ -409,7 +407,7 @@ public class GameScreen extends BaseScreen {
                 checkAndSpawnPowerUps();
             }
         }
-
+        soundPlayer.updateVolume();
         // 3. UPDATE UI LOGIC (ALWAYS - even if paused)
         // This is what makes the PausedScreen animation actually move!
         uiStage.act(delta);
@@ -525,11 +523,21 @@ public class GameScreen extends BaseScreen {
         float py = player.getY();
         if (activeRaid == RaidType.NONE && py >= 1500 && py >= nextAnomalyMinHeight) {
             int choice = MathUtils.random(1, 3);
-            if (choice == 1) activeRaid = RaidType.ASTEROIDS;
-            else if (choice == 2) activeRaid = RaidType.UFO;
-            else activeRaid = RaidType.MAGNETIC_STORM;
 
-            raidEndHeight = py + 2000f; // Raid lasts for 2000 units
+            if (choice == 1) {
+                activeRaid = RaidType.ASTEROIDS;
+                soundPlayer.playMeteor();   // 🔊 meteor sound
+            }
+            else if (choice == 2) {
+                activeRaid = RaidType.UFO;
+                soundPlayer.playUFO();      // 🔊 alien sound
+            }
+            else {
+                activeRaid = RaidType.MAGNETIC_STORM;
+                soundPlayer.playStatic();   // 🔊 static sound
+            }
+
+            raidEndHeight = py + 2000f;
         }
 
         if (activeRaid != RaidType.NONE) {
@@ -574,45 +582,15 @@ public class GameScreen extends BaseScreen {
         scoreFont = generator.generateFont(parameter);
         generator.dispose();
 
-        // Inside setupUI()
-        arrowTex = new Texture(Gdx.files.internal("arrow.png"));
-
-        leftArrow = new Image(arrowTex);
-        rightArrow = new Image(arrowTex);
-
-        leftArrow.setOrigin(Align.center);
-
-        Table arrowTable = new Table();
-        arrowTable.setFillParent(true); // Make the table the size of the whole screen
-
-        arrowTable.add(leftArrow).size(70, 100).left().padLeft(20);
-        arrowTable.add().expandX(); // This invisible spacer pushes the right arrow away
-        arrowTable.add(rightArrow).size(70, 100).right().padRight(20);
-
-        leftArrow.addAction(Actions.forever(Actions.sequence(
-            Actions.alpha(0.1f, 0.5f), // Fade to almost invisible
-            Actions.alpha(0.6f, 0.5f)  // Fade back to semi-transparent
-        )));
-
-        rightArrow.addAction(Actions.forever(Actions.sequence(
-            Actions.alpha(0.1f, 0.5f),
-            Actions.alpha(0.6f, 0.5f)
-        )));
-
-        uiStage.addActor(arrowTable);
-
-        arrowTable.addAction(Actions.sequence(
-            Actions.delay(10f),      // Wait for 10 seconds
-            Actions.fadeOut(1f),     // Fade out over 1 second (looks smoother)
-            Actions.removeActor()    // Delete it from the stage entirely
-        ));
-
         scoreLabel = new Label("Best: 0m", new Label.LabelStyle(scoreFont, Color.WHITE));
         Table scoreTable = new Table();
         scoreTable.setFillParent(true);
         scoreTable.top().left().pad(20);
         scoreTable.add(scoreLabel);
         uiStage.addActor(scoreTable);
+
+        Texture settingsTex = new Texture(Gdx.files.internal("settings.png")); // Ensure you have this asset
+        ImageButton settingsButton = new ImageButton(new TextureRegionDrawable(new TextureRegion(settingsTex)));
 
         Texture pauseTex = new Texture(Gdx.files.internal("Pause.png"));
         ImageButton pauseButton = new ImageButton(new TextureRegionDrawable(new TextureRegion(pauseTex)));
@@ -621,6 +599,7 @@ public class GameScreen extends BaseScreen {
         uiTable.top().right();
         uiTable.add(pauseButton).size(40, 40).pad(10);
         uiStage.addActor(uiTable);
+        uiTable.add(settingsButton).size(40, 40).pad(10);
 
         pauseOverlay = new PausedScreen(
             () -> { // Resume function
@@ -635,6 +614,14 @@ public class GameScreen extends BaseScreen {
             main
         );
         uiStage.addActor(pauseOverlay);
+
+        settingsButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                soundPlayer.stopMusic(); // Optional: stop music before switching
+                main.setScreen(new SettingsScreen(main));
+            }
+        });
 
         pauseButton.addListener(new ClickListener() {
             @Override public void clicked(InputEvent event, float x, float y) { paused = !paused; pauseOverlay.toggle(paused); }
@@ -716,19 +703,6 @@ public class GameScreen extends BaseScreen {
         gameOverTable.setVisible(false);
         uiStage.addActor(gameOverTable);
     }
-    @Override
-    public void show() {
-        InputMultiplexer multiplexer = new InputMultiplexer();
-
-        multiplexer.addProcessor(uiStage);
-        multiplexer.addProcessor(stage);
-
-        Gdx.input.setInputProcessor(multiplexer);
-
-        if (soundPlayer != null) {
-            soundPlayer.playMusic();
-        }
-    }
 
     private Texture createWhitePixel() {
         com.badlogic.gdx.graphics.Pixmap pixmap = new com.badlogic.gdx.graphics.Pixmap(1, 1, com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888);
@@ -754,7 +728,6 @@ public class GameScreen extends BaseScreen {
         if (asteroidTex != null) asteroidTex.dispose();
         if (anomalyTex != null) anomalyTex.dispose();
         if (msManger != null) msManger.dispose();
-        if (arrowTex != null) arrowTex.dispose();
         if (pauseOverlay != null) {
             pauseOverlay.dispose();
         }

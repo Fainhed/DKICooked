@@ -18,6 +18,7 @@ import io.github.DKICooked.Main;
 import io.github.DKICooked.screen.BaseScreen;
 import io.github.DKICooked.screen.game.CharacterSelectScreen;
 import io.github.DKICooked.screen.game.LeaderboardScreen;
+import io.github.DKICooked.screen.SettingsScreen;
 
 public class MainMenuScreen extends BaseScreen {
     private final Main main;
@@ -64,12 +65,13 @@ public class MainMenuScreen extends BaseScreen {
         // 4. DEFINE BUTTONS
         TextButton startButton = new TextButton("START GAME", btnStyle);
         TextButton lbButton    = new TextButton("LEADERBOARD", btnStyle);
+        TextButton settingsButton = new TextButton("SETTINGS", btnStyle);
         TextButton exitButton  = new TextButton("EXIT", btnStyle);
 
         // 5. ADD TO TABLE (Cleaned up padding to avoid overlapping)
         table.add(startButton).padTop(-50).padBottom(10).row();
         table.add(lbButton).padBottom(10).row();
-
+        table.add(settingsButton).padBottom(10).row();
         table.add(exitButton).padTop(50).padBottom(10).row();
 
         // 6. KEEP ANIMATION
@@ -94,12 +96,22 @@ public class MainMenuScreen extends BaseScreen {
             }
         });
 
+        settingsButton.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                // This will trigger your new SettingsScreen
+                main.setScreen(new SettingsScreen(main));
+            }
+        });
+
         exitButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 Gdx.app.exit();
             }
         });
+
+        Gdx.input.setInputProcessor(stage);
     }
 
     private void createFonts() {
@@ -114,11 +126,6 @@ public class MainMenuScreen extends BaseScreen {
 
         menuFont = generator.generateFont(parameter);
         generator.dispose();
-    }
-
-    @Override
-    public void show() {
-        Gdx.input.setInputProcessor(stage);
     }
 
     @Override
